@@ -1,0 +1,544 @@
+<title>CA1 뉴런 시뮬레이터</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* Layout: 현미경 관찰 화면 — 왼쪽 시료 목록 · 가운데 3D 관찰창 · 오른쪽 측정값 패널. 단일 다크 테마(형광 현미경 화면을 의도). */
+:root {
+  color-scheme: dark;
+  --bg: #0a0f14;          /* 관찰실 바탕 */
+  --panel: #111921;       /* 패널 */
+  --panel-2: #16212b;     /* 패널 안의 구획 */
+  --line: #233140;        /* 구분선 */
+  --fg: #dfe7ee;          /* 본문 */
+  --muted: #8396a8;       /* 보조 글자 */
+  --accent: #ff4fa3;      /* 선택(마젠타 마커) */
+  --ok: #4fd1a5;          /* 검증 일치 */
+  --warn: #ffb547;        /* 보정값 */
+  --bad: #ff6b7d;         /* 비정상값 */
+  --soma: #f2b84b; --axon: #9aa5b1; --basal: #57c7e3; --apical: #a98cf0;
+  --sans: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --r: 10px;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px; box-sizing: border-box;
+}
+*, *::before, *::after { box-sizing: border-box; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; gap: 12px;
+  grid-template-columns: 250px minmax(0, 1fr) 340px; grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "head head head" "list view info"; }
+header { grid-area: head; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
+header h1 { font-size: 18px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+header .sub { color: var(--muted); font-size: 13px; }
+.stages { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+.stage { font-family: var(--mono); font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.stage.done { border-color: color-mix(in srgb, var(--ok) 50%, transparent); color: var(--ok); }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); min-height: 0; min-width: 0; }
+.list { grid-area: list; display: flex; flex-direction: column; overflow: hidden; }
+.list .top { padding: 12px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--line); }
+.list input[type=search] { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+.upload { display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px dashed var(--line); border-radius: 8px; padding: 8px; color: var(--muted); cursor: pointer; font-size: 13px; }
+.upload:hover, .upload.drag { border-color: var(--accent); color: var(--fg); }
+.upload input { display: none; }
+.items { overflow-y: auto; padding: 4px 0 8px; }
+.gh { position: sticky; top: 0; background: var(--panel); font-size: 11px; letter-spacing: 0.06em; color: var(--muted); padding: 10px 12px 4px; display: flex; justify-content: space-between; }
+.item { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; width: 100%; text-align: left; background: none; border: 0; padding: 6px 12px; cursor: pointer; border-left: 2px solid transparent; }
+.item:hover { background: var(--panel-2); }
+.item.on { background: var(--panel-2); border-left-color: var(--accent); }
+.item .nm { font-family: var(--mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item .ct { font-family: var(--mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.view { grid-area: view; position: relative; overflow: hidden; background: radial-gradient(ellipse at 50% 40%, #0f1a24 0%, var(--bg) 75%); }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.tip { position: absolute; pointer-events: none; font-family: var(--mono); font-size: 11px; background: rgba(10,15,20,.88); border: 1px solid var(--line); padding: 3px 7px; border-radius: 6px; transform: translate(12px, -50%); white-space: nowrap; }
+.toolbar { position: absolute; left: 10px; right: 10px; top: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; pointer-events: none; }
+.toolbar > * { pointer-events: auto; }
+.seg { display: flex; background: rgba(17,25,33,.92); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+.seg button { background: none; border: 0; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; color: var(--muted); }
+.seg button.on { background: var(--panel-2); color: var(--fg); box-shadow: inset 0 0 0 1px var(--line); }
+.ctl { display: flex; align-items: center; gap: 8px; background: rgba(17,25,33,.92); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: 12px; color: var(--muted); }
+.ctl input[type=range] { width: 90px; accent-color: var(--accent); }
+.ctl output { font-family: var(--mono); color: var(--fg); min-width: 2.5em; }
+.btn { background: rgba(17,25,33,.92); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 12px; }
+.btn:hover { border-color: var(--muted); }
+.legend { position: absolute; left: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 3px; background: rgba(17,25,33,.9); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; max-width: calc(100% - 20px); }
+.legend .row { display: flex; align-items: center; gap: 8px; }
+.legend .sw { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.legend .ramp { width: 120px; height: 8px; border-radius: 4px; }
+.legend .n { font-family: var(--mono); color: var(--muted); margin-left: auto; padding-left: 10px; }
+.hint { position: absolute; right: 10px; bottom: 10px; font-size: 11px; color: var(--muted); text-align: right; }
+
+.info { grid-area: info; overflow-y: auto; display: flex; flex-direction: column; }
+.sec { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.sec:last-child { border-bottom: 0; }
+.sec h2 { font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: var(--muted); margin: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.sec h2 .id { font-family: var(--mono); color: var(--accent); letter-spacing: 0; font-size: 13px; }
+.title { font-family: var(--mono); font-size: 13px; word-break: break-all; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); }
+.chip.wt { color: var(--basal); } .chip.ad { color: var(--apical); }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; margin: 0; }
+dt { color: var(--muted); font-size: 12.5px; }
+dd { margin: 0; text-align: right; font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+dd .u { color: var(--muted); margin-left: 3px; }
+dd.hl { color: var(--warn); }
+.sub-h { font-size: 12px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 8px; }
+.badge { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--ok) 10%, transparent); border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
+.badge.none { background: var(--panel-2); border-color: var(--line); color: var(--muted); }
+.badge b { color: var(--ok); font-weight: 600; }
+.badge .d { color: var(--muted); font-family: var(--mono); font-size: 11px; display: block; }
+.note { font-size: 12px; color: var(--muted); }
+.fix { font-size: 12.5px; padding: 7px 10px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); background: color-mix(in srgb, var(--warn) 8%, transparent); }
+.fix.bad { border-color: color-mix(in srgb, var(--bad) 40%, transparent); background: color-mix(in srgb, var(--bad) 8%, transparent); }
+.empty { color: var(--muted); font-size: 13px; }
+.err { color: var(--bad); font-size: 12.5px; }
+
+@media (max-width: 960px) {
+  html, body { height: auto; }
+  .app { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: none;
+    grid-template-areas: "head" "view" "info" "list"; }
+  .view { height: 64vh; min-height: 340px; }
+  .list { max-height: 60vh; }
+  .stages { margin-left: 0; }
+  .hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app">
+  <header>
+    <h1>CA1 뉴런 시뮬레이터</h1>
+    <span class="sub">SWC 3D 재구성 · R 보정값과 전기 파라미터 확인</span>
+    <div class="stages" aria-label="개발 단계">
+      <span class="stage done">1 3D 시각화</span>
+      <span class="stage done">2 R 보정 연동</span>
+      <span class="stage">3 구조 편집</span>
+      <span class="stage">4 HH 시뮬레이션</span>
+      <span class="stage">5 신호 시각화</span>
+    </div>
+  </header>
+
+  <aside class="panel list" aria-label="뉴런 목록">
+    <div class="top">
+      <input type="search" id="q" placeholder="이름으로 찾기 (예: WT0601)" aria-label="뉴런 검색">
+      <label class="upload" id="drop"><input type="file" id="file" accept=".swc,.txt" multiple>다른 SWC 파일 불러오기</label>
+    </div>
+    <div class="items" id="items"></div>
+  </aside>
+
+  <main class="panel view" id="view">
+    <canvas id="gl"></canvas>
+    <div class="toolbar">
+      <div class="seg" id="mode" role="group" aria-label="색상 기준">
+        <button data-m="type" class="on">부위</button>
+        <button data-m="comp">연결 구조</button>
+        <button data-m="radius">반지름</button>
+        <button data-m="fix">보정 위치</button>
+      </div>
+      <label class="ctl" for="thick">굵기 확대 <input type="range" id="thick" min="1" max="8" step="0.5" value="3"><output id="thickv">×3</output></label>
+      <button class="btn" id="reset">시점 초기화</button>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="hint">드래그 회전 · 휠 확대 · 우클릭 이동 · 클릭 선택</div>
+    <div class="tip" id="tip" hidden></div>
+  </main>
+
+  <aside class="panel info" id="info" aria-live="polite"></aside>
+</div>
+
+<script id="neuron-data" type="application/json">__DATA__</script>
+<script>/*__ENGINE__*/</script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  const E = window.NeuronEngine;
+  const DATA = JSON.parse(document.getElementById('neuron-data').textContent);
+  const $ = s => document.querySelector(s);
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const TYPE_NAME = { 0: '미지정(type 0)', 1: '세포체(soma)', 2: '축삭(axon)', 3: '기저 수상돌기', 4: '첨단 수상돌기' };
+  const TYPE_COLOR = { 1: css('--soma'), 2: css('--axon'), 3: css('--basal'), 4: css('--apical') };
+  const OTHER = '#7d8a96';
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+  // ---------- 숫자 표시 ----------
+  function f(v, d = 3) {
+    if (!Number.isFinite(v)) return '—';
+    const a = Math.abs(v);
+    if (a !== 0 && (a < 1e-3 || a >= 1e6)) return v.toExponential(2);
+    return Number(v.toFixed(d)).toLocaleString('en-US', { maximumFractionDigits: d });
+  }
+  const U = (v, u, d) => `${f(v, d)}<span class="u">${u}</span>`;
+
+  // ---------- 뉴런 목록 ----------
+  const entries = DATA.neurons.map(n => ({ ...n, key: n.file }));
+  const uploaded = [];
+  const GROUPS = [['WT', 'M06', '정상 WT · 6개월'], ['WT', 'M12', '정상 WT · 12개월'], ['AD', 'M06', '알츠하이머 AD · 6개월'], ['AD', 'M12', '알츠하이머 AD · 12개월']];
+  const nodeCount = t => t.split('\n').filter(l => l && l[0] !== '#').length;
+  entries.forEach(e => e.nodes = nodeCount(e.text));
+  let currentKey = null;
+
+  function renderList() {
+    const q = $('#q').value.trim().toLowerCase();
+    const box = $('#items'); box.innerHTML = '';
+    const sections = [];
+    if (uploaded.length) sections.push(['불러온 파일', uploaded]);
+    for (const [g, a, label] of GROUPS) sections.push([label, entries.filter(e => e.group === g && e.age === a)]);
+    for (const [label, list] of sections) {
+      const vis = list.filter(e => !q || e.name.toLowerCase().includes(q));
+      if (!vis.length) continue;
+      const h = document.createElement('div'); h.className = 'gh'; h.innerHTML = `<span>${label}</span><span>${vis.length}</span>`; box.appendChild(h);
+      for (const e of vis) {
+        const b = document.createElement('button'); b.className = 'item' + (e.key === currentKey ? ' on' : ''); b.type = 'button';
+        b.innerHTML = `<span class="nm" title="${e.name}">${e.name}</span><span class="ct">${e.nodes}</span>`;
+        b.onclick = () => load(e);
+        box.appendChild(b);
+      }
+    }
+  }
+  $('#q').addEventListener('input', renderList);
+
+  function addFiles(files) {
+    [...files].forEach(file => {
+      const rd = new FileReader();
+      rd.onload = () => {
+        const name = file.name.replace(/(\.swc)+$/i, '');
+        const m = file.name.toUpperCase().match(/^(WT|AD)(06|12)/);
+        const e = { key: 'up:' + file.name + ':' + Date.now(), file: file.name, name, group: m ? m[1] : '', age: m ? 'M' + m[2] : '', mouse: '', val: null, text: rd.result, upload: true };
+        e.nodes = nodeCount(e.text);
+        uploaded.unshift(e); load(e);
+      };
+      rd.readAsText(file);
+    });
+  }
+  $('#file').addEventListener('change', ev => addFiles(ev.target.files));
+  const drop = $('#drop');
+  ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, ev => { ev.preventDefault(); drop.classList.add('drag'); }));
+  ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, ev => { ev.preventDefault(); drop.classList.remove('drag'); }));
+  drop.addEventListener('drop', ev => addFiles(ev.dataTransfer.files));
+
+  // ---------- 3D ----------
+  const canvas = $('#gl'), view = $('#view');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1e5);
+  const controls = new THREE.OrbitControls(camera, canvas);
+  controls.enableDamping = true; controls.dampingFactor = 0.12;
+  scene.add(new THREE.HemisphereLight(0xdfefff, 0x1a2430, 0.9));
+  const key = new THREE.DirectionalLight(0xffffff, 0.75); key.position.set(1, 1.5, 2); camera.add(key); scene.add(camera);
+
+  const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 10, 1, false);
+  const sphGeo = new THREE.SphereGeometry(1, 12, 8);
+  const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  const hiMat = new THREE.MeshBasicMaterial({ color: css('--accent') });
+  let group = null, edgeMesh = null, nodeMesh = null, hiGroup = null, marker = null;
+  let N = null, pos = null, edges = [], radiusSpan = 1, sceneRadius = 100;
+  let mode = store.get('mode') || 'comp';
+  let thick = parseFloat(store.get('thick')) || 3;
+
+  function resize() {
+    const w = view.clientWidth, h = view.clientHeight;
+    renderer.setSize(w, h, false); camera.aspect = w / Math.max(h, 1); camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(view);
+
+  const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpV = new THREE.Vector3(), tmpS = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+  function edgeMatrix(c, p, rad, out) {
+    const a = pos[c], b = pos[p];
+    tmpV.subVectors(a, b); const len = tmpV.length();
+    tmpQ.setFromUnitVectors(UP, tmpV.normalize());
+    tmpS.set(rad, len, rad);
+    out.compose(tmpV.addVectors(a, b).multiplyScalar(0.5), tmpQ, tmpS);
+    return out;
+  }
+  function buildMatrices() {
+    edges.forEach((c, k) => edgeMesh.setMatrixAt(k, edgeMatrix(c, N.parent[c], N.r[c] * thick, tmpM)));
+    for (let i = 0; i < N.N; i++) { tmpS.setScalar(N.r[i] * thick * 1.02); edgeMesh && nodeMesh.setMatrixAt(i, tmpM.compose(pos[i], tmpQ.identity(), tmpS)); }
+    edgeMesh.instanceMatrix.needsUpdate = true; nodeMesh.instanceMatrix.needsUpdate = true;
+    if (selected !== null) highlight(selected);
+  }
+
+  // ---------- 색상 ----------
+  const col = new THREE.Color();
+  const compColor = k => col.setHSL(((k * 0.618034) % 1), 0.62, 0.62).getHex();
+  function rampColor(t) { // 진한 남색 → 청록 → 노랑
+    const stops = [[0.16, 0.28, 0.55], [0.22, 0.78, 0.86], [1.0, 0.86, 0.35]];
+    const s = t < 0.5 ? 0 : 1, u = t < 0.5 ? t / 0.5 : (t - 0.5) / 0.5;
+    const a = stops[s], b = stops[s + 1];
+    return col.setRGB(a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u).getHex();
+  }
+  let rMinLog = 0, rMaxLog = 1;
+  function nodeColor(i) {
+    if (mode === 'type') return new THREE.Color(TYPE_COLOR[N.type[i]] || OTHER).getHex();
+    if (mode === 'comp') return compColor(N.comp[i]);
+    if (mode === 'radius') return rampColor((Math.log(N.r[i]) - rMinLog) / Math.max(rMaxLog - rMinLog, 1e-9));
+    if (N.invalidOrig[i]) return new THREE.Color(css('--bad')).getHex();
+    if (N.wasZero[i]) return new THREE.Color(css('--warn')).getHex();
+    if (N.lenZero[i]) return 0xfff07a;
+    return 0x33414f;
+  }
+  function recolor() {
+    const c = new THREE.Color();
+    for (let i = 0; i < N.N; i++) nodeMesh.setColorAt(i, c.setHex(nodeColor(i)));
+    edges.forEach((e, k) => edgeMesh.setColorAt(k, c.setHex(nodeColor(e))));
+    nodeMesh.instanceColor.needsUpdate = true; edgeMesh.instanceColor.needsUpdate = true;
+    document.querySelectorAll('#mode button').forEach(b => b.classList.toggle('on', b.dataset.m === mode));
+    renderLegend();
+  }
+  function renderLegend() {
+    const L = $('#legend'); const cnt = {};
+    let html = '';
+    if (mode === 'type') {
+      for (let i = 0; i < N.N; i++) cnt[N.type[i]] = (cnt[N.type[i]] || 0) + 1;
+      html = Object.keys(cnt).sort().map(t => `<div class="row"><span class="sw" style="background:${TYPE_COLOR[t] || OTHER}"></span>${typeLabel(+t)}<span class="n">${cnt[t]}</span></div>`).join('');
+      if (uniformType) html += `<div class="row note">이 파일은 모든 점이 type 1로 적혀 있어 부위 구분이 없습니다</div>`;
+    } else if (mode === 'comp') {
+      html = `<div class="row">서로 연결되지 않은 구조 ${N.roots.length}개</div><div class="row note">색이 다르면 전류가 서로 흐르지 않습니다</div>`;
+    } else if (mode === 'radius') {
+      const g = [0, .25, .5, .75, 1].map(t => '#' + new THREE.Color(rampColor(t)).getHexString()).join(',');
+      html = `<div class="row">계산용 반지름 (로그 눈금)</div><div class="row"><span class="ramp" style="background:linear-gradient(90deg,${g})"></span></div><div class="row note" style="justify-content:space-between"><span>${f(Math.exp(rMinLog), 2)} µm</span><span>${f(Math.exp(rMaxLog), 2)} µm</span></div>`;
+    } else {
+      const z = N.wasZero.reduce((a, b) => a + b, 0), iv = N.invalidOrig.reduce((a, b) => a + b, 0), lz = N.lenZero.reduce((a, b) => a + b, 0);
+      html = `<div class="row"><span class="sw" style="background:var(--warn)"></span>반지름 0 → 0.1 µm<span class="n">${z}</span></div>
+        <div class="row"><span class="sw" style="background:var(--bad)"></span>비정상 반지름 → 이웃 중앙값<span class="n">${iv}</span></div>
+        <div class="row"><span class="sw" style="background:#fff07a"></span>길이 0 연결 → 0.35 µm<span class="n">${lz}</span></div>
+        <div class="row"><span class="sw" style="background:#33414f"></span>보정 없음<span class="n">${N.N - z - iv}</span></div>`;
+    }
+    L.innerHTML = html;
+  }
+  $('#mode').addEventListener('click', ev => { const m = ev.target.dataset && ev.target.dataset.m; if (!m) return; mode = m; store.set('mode', m); recolor(); });
+  $('#thick').value = thick; $('#thickv').textContent = '×' + thick;
+  $('#thick').addEventListener('input', ev => { thick = parseFloat(ev.target.value); $('#thickv').textContent = '×' + thick; store.set('thick', thick); if (N) buildMatrices(); });
+
+  function frame() {
+    const box = new THREE.Box3(); pos.forEach(p => box.expandByPoint(p));
+    const s = new THREE.Sphere(); box.getBoundingSphere(s); sceneRadius = Math.max(s.radius, 1);
+    const vf = THREE.MathUtils.degToRad(camera.fov / 2), hf = Math.atan(Math.tan(vf) * camera.aspect);
+    const d = sceneRadius / Math.sin(Math.min(vf, hf)) * 1.05;
+    camera.near = d / 1000; camera.far = d * 20; camera.updateProjectionMatrix();
+    camera.position.set(0, 0, d); camera.up.set(0, -1, 0); // SWC 영상 좌표: y가 아래 방향
+    controls.target.set(0, 0, 0); controls.update();
+  }
+  $('#reset').onclick = () => { if (N) frame(); };
+
+  // ---------- 뉴런 불러오기 ----------
+  let meta = null, selected = null, pathLen = null, uniformType = false;
+  const typeLabel = t => (uniformType && t === 1) ? '1 (부위 구분 없음)' : (TYPE_NAME[t] || 'type ' + t);
+  function load(e) {
+    let n;
+    try { n = E.processSwc(e.text); }
+    catch (err) { showError(e, err.message); return; }
+    meta = e; N = n; currentKey = e.key;
+    { let ones = 0; for (let i = 0; i < n.N; i++) if (n.type[i] === 1) ones++; uniformType = ones >= n.N * 0.95; } store.set('neuron', e.key);
+    if (group) { scene.remove(group); edgeMesh.dispose(); nodeMesh.dispose(); }
+    group = new THREE.Group(); scene.add(group);
+    // 원점 중심 정렬 (표시용 이동일 뿐 원본 좌표는 그대로)
+    let cx = 0, cy = 0, cz = 0, mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+    for (let i = 0; i < n.N; i++) { const v = [n.x[i], n.y[i], n.z[i]]; for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], v[k]); mx[k] = Math.max(mx[k], v[k]); } }
+    [cx, cy, cz] = [0, 1, 2].map(k => (mn[k] + mx[k]) / 2);
+    pos = Array.from({ length: n.N }, (_, i) => new THREE.Vector3(n.x[i] - cx, n.y[i] - cy, n.z[i] - cz));
+    edges = []; for (let i = 0; i < n.N; i++) if (n.parent[i] >= 0 && n.geomLen[i] > 0) edges.push(i);
+    edgeMesh = new THREE.InstancedMesh(cylGeo, mat, Math.max(edges.length, 1)); edgeMesh.count = edges.length;
+    nodeMesh = new THREE.InstancedMesh(sphGeo, mat, n.N);
+    group.add(edgeMesh, nodeMesh);
+    const lr = Array.from(n.r).map(Math.log); rMinLog = Math.min(...lr); rMaxLog = Math.max(...lr);
+    pathLen = new Float64Array(n.N);
+    (function () { const st = [...n.roots]; while (st.length) { const u = st.pop(); for (const c of n.children[u]) { pathLen[c] = pathLen[u] + n.geomLen[c]; st.push(c); } } })();
+    hiGroup = new THREE.Group(); group.add(hiGroup);
+    marker = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), hiMat); marker.visible = false; group.add(marker);
+    selected = null;
+    buildMatrices(); recolor(); frame();
+    // 처음 화면: 가장 큰 연결 구조의 뿌리를 선택해 둔다 (R 3단계의 근위 지점 선택과 같은 기준)
+    const sizes = n.roots.map((_, k) => 0); for (let i = 0; i < n.N; i++) sizes[n.comp[i]]++;
+    const somaRoots = n.roots.filter(r => n.type[r] === 1);
+    const pool = somaRoots.length ? somaRoots : n.roots;
+    const start = pool.reduce((a, b) => sizes[n.comp[b]] > sizes[n.comp[a]] ? b : a);
+    select(start);
+    renderList();
+  }
+
+  // ---------- 가지(분기점~분기점/말단 구간) ----------
+  function branchOf(i) {
+    if (N.parent[i] < 0) return null;
+    const list = [i];
+    let p = N.parent[i];
+    while (p >= 0 && N.childCount[p] === 1 && N.parent[p] >= 0) { list.push(p); p = N.parent[p]; }
+    const startNode = p;
+    let c = i;
+    while (N.childCount[c] === 1) { c = N.children[c][0]; list.push(c); }
+    return { nodes: list, start: startNode, end: c };
+  }
+  function highlight(i) {
+    hiGroup.clear();
+    const br = branchOf(i);
+    const m = new THREE.Matrix4();
+    if (br) for (const k of br.nodes) {
+      if (!(N.geomLen[k] > 0)) continue;
+      const mesh = new THREE.Mesh(cylGeo, hiMat);
+      edgeMatrix(k, N.parent[k], Math.max(N.r[k] * thick * 1.35, sceneRadius * 0.0025), m);
+      m.decompose(mesh.position, mesh.quaternion, mesh.scale); hiGroup.add(mesh);
+    }
+    marker.visible = true; marker.position.copy(pos[i]);
+    marker.scale.setScalar(Math.max(N.r[i] * thick * 1.8, sceneRadius * 0.012));
+    return br;
+  }
+
+  // ---------- 정보 패널 ----------
+  function sum(a, idx) { let s = 0; for (const i of idx) s += a[i]; return s; }
+  function neuronSummary() {
+    const all = [...Array(N.N).keys()];
+    const kids = all.filter(i => N.parent[i] >= 0);
+    const z = sum(N.wasZero, all), iv = sum(N.invalidOrig, all), lz = sum(N.lenZero, all);
+    const totalLen = kids.reduce((s, i) => s + N.geomLen[i], 0);
+    const bif = all.filter(i => N.childCount[i] >= 2).length, term = all.filter(i => N.childCount[i] === 0).length;
+    const area = sum(N.area, all) * 1e8, cap = sum(N.cap, all) * 1e6;
+    const g = meta.group, chips = [];
+    if (g) chips.push(`<span class="chip ${g.toLowerCase()}">${g === 'WT' ? '정상 WT' : '알츠하이머 AD'}</span>`);
+    if (meta.age) chips.push(`<span class="chip">${meta.age === 'M06' ? '6개월령' : '12개월령'}</span>`);
+    if (meta.mouse) chips.push(`<span class="chip">개체 ${meta.mouse}</span>`);
+    if (meta.upload) chips.push(`<span class="chip">불러온 파일</span>`);
+    const v = meta.val;
+    const badge = v && v.mism === 0
+      ? `<div class="badge"><span>✓</span><span><b>팀 R 결과와 일치</b> · 1·2단계 parameters.csv의 23개 열을 노드 ${N.N}개 전부 비교<span class="d">최대 상대오차 ${v.maxRel.toExponential(1)} (CSV 저장 시 반올림 수준)</span></span></div>`
+      : v ? `<div class="badge none">R 결과와 ${v.mism}곳 차이</div>`
+      : `<div class="badge none">비교할 R 결과가 없는 파일입니다. 같은 보정 규칙으로 계산했습니다.</div>`;
+    return `<section class="sec">
+      <h2>이 뉴런</h2>
+      <div class="title">${meta.name}</div>
+      <div class="chips">${chips.join('')}</div>
+      ${badge}
+      <dl>
+        <dt>노드 수</dt><dd>${N.N}</dd>
+        <dt>연결 구조(뿌리) 수</dt><dd>${N.roots.length}</dd>
+        <dt>분기점 · 말단</dt><dd>${bif} · ${term}</dd>
+        <dt>총 추적 길이</dt><dd>${U(totalLen, 'µm', 1)}</dd>
+        <dt>총 막면적</dt><dd>${U(area, 'µm²', 1)}</dd>
+        <dt>총 막용량</dt><dd>${U(cap, 'pF', 2)}</dd>
+      </dl>
+      <div class="sub-h">계산용 보정 (원본 SWC는 그대로 보관)</div>
+      <dl>
+        <dt>반지름 0 → 0.1 µm</dt><dd class="${z ? 'hl' : ''}">${z}</dd>
+        <dt>비정상 반지름 → 이웃 중앙값</dt><dd class="${iv ? 'hl' : ''}">${iv}</dd>
+        <dt>길이 0 연결 → 0.35 µm</dt><dd class="${lz ? 'hl' : ''}">${lz}</dd>
+      </dl>
+      <p class="note" style="margin:0">보정 기준은 기존 연구 결과를 재현하기 위한 탐색적 가정이며 생물학적 측정값이 아닙니다.</p>
+    </section>`;
+  }
+  function nodeSection(i) {
+    const isRoot = N.parent[i] < 0;
+    const fixes = [];
+    if (N.invalidOrig[i]) fixes.push(`<div class="fix bad">원본 반지름이 비정상값(NaN/음수)이라 주변 노드의 중앙값 ${f(N.r[i], 4)} µm로 계산합니다.</div>`);
+    if (N.wasZero[i]) fixes.push(`<div class="fix">원본 반지름 0을 계산용 0.1 µm로 바꿔 씁니다.</div>`);
+    if (N.lenZero[i]) fixes.push(`<div class="fix">부모와 좌표가 같아 길이가 0입니다. 좌표는 그대로 두고 계산용 길이만 0.35 µm로 씁니다.</div>`);
+    if (isRoot) fixes.push(`<div class="fix">뿌리 노드입니다. R 코드와 같이 계산용 구획 길이를 1 µm로 가정합니다.</div>`);
+    const kind = isRoot ? '뿌리' : N.childCount[i] === 0 ? '말단' : N.childCount[i] >= 2 ? `분기점 (자식 ${N.childCount[i]})` : '중간';
+    return `<section class="sec">
+      <h2>선택한 노드 <span class="id">#${N.id[i]}</span></h2>
+      <dl>
+        <dt>SWC type</dt><dd>${typeLabel(N.type[i])}</dd>
+        <dt>위치 종류</dt><dd>${kind}</dd>
+        <dt>부모 노드</dt><dd>${isRoot ? '없음 (−1)' : '#' + N.pid[i]}</dd>
+        <dt>좌표 x, y, z</dt><dd>${f(N.x[i], 2)}, ${f(N.y[i], 2)}, ${f(N.z[i], 2)}</dd>
+        <dt>원본 반지름</dt><dd>${Number.isFinite(N.rOrig[i]) ? U(N.rOrig[i], 'µm', 4) : 'NaN'}</dd>
+        <dt>계산용 반지름</dt><dd class="${N.r[i] !== N.rOrig[i] ? 'hl' : ''}">${U(N.r[i], 'µm', 4)}</dd>
+        <dt>계산용 직경</dt><dd>${U(2 * N.r[i], 'µm', 4)}</dd>
+        <dt>부모까지 길이</dt><dd>${isRoot ? '—' : U(N.geomLen[i], 'µm', 3)}</dd>
+        <dt>계산용 구획 길이</dt><dd class="${N.effLen[i] !== N.geomLen[i] ? 'hl' : ''}">${U(N.effLen[i], 'µm', 3)}</dd>
+        <dt>뿌리까지 경로 길이</dt><dd>${U(pathLen[i], 'µm', 1)}</dd>
+      </dl>
+      ${fixes.join('')}
+      <div class="sub-h">이 구획의 전기적 파라미터 (R 2단계와 같은 식)</div>
+      <dl>
+        <dt>막면적 2πrℓ</dt><dd>${U(N.area[i] * 1e8, 'µm²', 3)}</dd>
+        <dt>막용량 C = cm·A</dt><dd>${U(N.cap[i] * 1e6, 'pF', 4)}</dd>
+        <dt>축저항 Ra·ℓ/(πr²)</dt><dd>${U(N.Ra[i] / 1e6, 'MΩ', 3)}</dd>
+        <dt>최대 gNa</dt><dd>${U(N.gNa[i] * 1e6, 'nS', 3)}</dd>
+        <dt>최대 gK</dt><dd>${U(N.gK[i] * 1e6, 'nS', 3)}</dd>
+        <dt>누설 gL</dt><dd>${U(N.gL[i] * 1e6, 'nS', 4)}</dd>
+      </dl>
+    </section>`;
+  }
+  function branchSection(br) {
+    if (!br) return `<section class="sec"><h2>선택한 가지</h2><p class="empty" style="margin:0">뿌리 노드에는 부모 구간이 없습니다. 가지를 보려면 다른 노드를 클릭하세요.</p></section>`;
+    const L = sum(N.geomLen, br.nodes), Ra = sum(N.Ra, br.nodes), A = sum(N.area, br.nodes);
+    const rs = br.nodes.map(k => N.r[k]);
+    const endKind = N.childCount[br.end] === 0 ? '말단' : '분기점';
+    const startKind = N.parent[br.start] < 0 ? '뿌리' : '분기점';
+    return `<section class="sec">
+      <h2>선택한 가지 <span class="id">#${N.id[br.start]} → #${N.id[br.end]}</span></h2>
+      <dl>
+        <dt>구간</dt><dd>${startKind} → ${endKind}</dd>
+        <dt>노드 수</dt><dd>${br.nodes.length}</dd>
+        <dt>가지 길이</dt><dd>${U(L, 'µm', 2)}</dd>
+        <dt>평균 반지름</dt><dd>${U(rs.reduce((a, b) => a + b, 0) / rs.length, 'µm', 3)}</dd>
+        <dt>가지 막면적</dt><dd>${U(A * 1e8, 'µm²', 2)}</dd>
+        <dt>가지 축저항 합</dt><dd>${U(Ra / 1e6, 'MΩ', 2)}</dd>
+      </dl>
+      <p class="note" style="margin:0">가늘고 긴 가지일수록 축저항 합이 커져 신호가 약해집니다. 4단계에서 이 값으로 막전위를 계산합니다.</p>
+    </section>`;
+  }
+  function select(i) {
+    selected = i;
+    const br = highlight(i);
+    $('#info').innerHTML = neuronSummary() + nodeSection(i) + branchSection(br);
+  }
+  function showError(e, msg) {
+    $('#info').innerHTML = `<section class="sec"><h2>불러오기 실패</h2><div class="title">${e.name}</div><p class="err" style="margin:0">${msg}</p><p class="note" style="margin:0">SWC 한 줄은 번호, 부위, x, y, z, 반지름, 부모 번호의 7개 값이어야 합니다.</p></section>`;
+  }
+
+  // ---------- 클릭 선택 (회전과 분리: 거의 움직이지 않은 클릭만 선택) ----------
+  const tip = $('#tip'); const pv = new THREE.Vector3();
+  function pick(clientX, clientY, maxPx) {
+    if (!N) return -1;
+    const rect = canvas.getBoundingClientRect();
+    const mx = clientX - rect.left, my = clientY - rect.top;
+    let best = -1, bestD = maxPx * maxPx, bestZ = 2;
+    group.updateMatrixWorld();
+    for (let i = 0; i < N.N; i++) {
+      pv.copy(pos[i]).project(camera);
+      if (pv.z < -1 || pv.z > 1) continue;
+      const sx = (pv.x + 1) / 2 * rect.width, sy = (1 - pv.y) / 2 * rect.height;
+      const d = (sx - mx) ** 2 + (sy - my) ** 2;
+      if (d < bestD - 4 || (Math.abs(d - bestD) <= 4 && pv.z < bestZ)) { best = i; bestD = d; bestZ = pv.z; }
+    }
+    return best;
+  }
+  let down = null;
+  canvas.addEventListener('pointerdown', ev => { down = { x: ev.clientX, y: ev.clientY, b: ev.button }; tip.hidden = true; });
+  canvas.addEventListener('pointerup', ev => {
+    if (!down) return;
+    const moved = Math.hypot(ev.clientX - down.x, ev.clientY - down.y);
+    if (down.b === 0 && moved < 5) { const i = pick(ev.clientX, ev.clientY, ev.pointerType === 'touch' ? 24 : 14); if (i >= 0) select(i); }
+    down = null;
+  });
+  let hoverRaf = 0;
+  canvas.addEventListener('pointermove', ev => {
+    if (down || ev.pointerType === 'touch') return;
+    cancelAnimationFrame(hoverRaf);
+    hoverRaf = requestAnimationFrame(() => {
+      const i = pick(ev.clientX, ev.clientY, 10);
+      const rect = view.getBoundingClientRect();
+      if (i >= 0) { tip.hidden = false; tip.style.left = (ev.clientX - rect.left) + 'px'; tip.style.top = (ev.clientY - rect.top) + 'px'; tip.textContent = `#${N.id[i]} · r ${f(N.r[i], 3)} µm`; canvas.style.cursor = 'pointer'; }
+      else { tip.hidden = true; canvas.style.cursor = 'grab'; }
+    });
+  });
+  canvas.addEventListener('pointerleave', () => { tip.hidden = true; });
+
+  (function loop() { controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop); })();
+
+  // ---------- 시작: 지난번 뉴런 또는 WT0601 중 가장 큰 뉴런 ----------
+  resize();
+  const last = entries.find(e => e.key === store.get('neuron'));
+  const wt0601 = entries.filter(e => e.mouse === 'WT0601').sort((a, b) => b.nodes - a.nodes)[0];
+  load(last || wt0601 || entries[0]);
+})();
+</script>
