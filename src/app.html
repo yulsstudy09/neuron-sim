@@ -24,9 +24,15 @@ button, input, select { font: inherit; color: inherit; }
 button:disabled, input:disabled, select:disabled { opacity: .45; cursor: not-allowed; }
 
 .app { height: 100%; display: grid; gap: 12px;
-  grid-template-columns: 240px minmax(0, 1fr) 350px; grid-template-rows: auto minmax(0, 1fr);
-  grid-template-areas: "head head head" "list main info"; }
-header { grid-area: head; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
+  grid-template-columns: minmax(0, 1fr) 350px; grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "head head" "main info"; }
+header { grid-area: head; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.pick { height: 36px; min-width: 240px; flex: 0 1 340px; max-width: 380px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 0 8px; font-family: var(--mono); font-size: 12.5px; }
+.search { width: 170px; }
+.modes { margin-left: auto; display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 4px; }
+.modes button { height: 34px; padding: 0 18px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; }
+.modes button.on { background: var(--accent); color: #1a0710; font-weight: 600; }
+.head-state { font-size: 12px; color: var(--muted); }
 header h1 { font-size: 18px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
 header .sub { color: var(--muted); font-size: 13px; }
 .stages { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
@@ -48,7 +54,7 @@ header .sub { color: var(--muted); font-size: 13px; }
 .item .nm { font-family: var(--mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .item .ct { font-family: var(--mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-.main { grid-area: main; display: grid; grid-template-rows: minmax(380px, 1fr) auto; gap: 12px; min-height: 0; min-width: 0; overflow-y: auto; }
+.main { grid-area: main; display: grid; grid-template-rows: auto minmax(380px, 1fr) auto; gap: 12px; min-height: 0; min-width: 0; overflow-y: auto; }
 .view { position: relative; overflow: hidden; background: radial-gradient(ellipse at 50% 40%, #0f1a24 0%, var(--bg) 75%); }
 #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 .view.editing { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent); }
@@ -138,15 +144,36 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
 .rowf select, .rowf input { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; color: var(--fg); }
 .rowf input[type=number] { width: 84px; font-family: var(--mono); }
 .ok-line { font-size: 12px; color: var(--ok); margin: 0; }
+.main > .status { min-height: 18px; padding: 0 2px; }
+.dock-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 600; }
+.dock.folded > :not(.dock-head) { display: none; }
+.simctl { display: flex; flex-direction: column; gap: 0; }
+.simctl > .btn.big { margin: 14px 16px 0; height: 48px; font-size: 15px; }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.opt { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; cursor: pointer; text-align: left; font-size: 13px; line-height: 1.3; display: flex; flex-direction: column; gap: 2px; color: var(--muted); }
+.opt b { font-weight: 600; color: var(--fg); }
+.opt small { font-size: 11.5px; color: var(--muted); }
+.opt.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.opt:disabled { opacity: .4; cursor: not-allowed; }
+.kv { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 3px 0; }
+.kv > span:first-child { color: var(--muted); }
+.kv > span:last-child { font-family: var(--mono); text-align: right; }
+.adv { border-top: 1px solid var(--line); margin-top: 4px; }
+.adv > summary { cursor: pointer; padding: 12px 16px; font-size: 13px; color: var(--muted); }
+.adv > :not(summary) { padding: 0 16px 12px; display: flex; flex-direction: column; gap: 10px; }
+.simctl > .adv > :not(summary) { padding: 0 16px 14px; }
+.app[data-mode="sim"] #info { display: none; }
+.app:not([data-mode="sim"]) #simctl { display: none; }
+.app:not([data-mode="sim"]) .dock { display: none; }
+.app[data-mode="edit"] #mode { display: none; }
 
-@media (max-width: 1100px) { .app { grid-template-columns: 200px minmax(0, 1fr) 320px; } .charts { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1100px) { .app { grid-template-columns: minmax(0, 1fr) 320px; } .charts { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 960px) {
   html, body { height: auto; }
-  .app { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "head" "main" "info" "list"; }
-  .main { grid-template-rows: auto auto; }
+  .app { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "head" "main" "info"; }
+  .main { grid-template-rows: auto auto auto; }
   .view { height: 58vh; min-height: 320px; }
-  .list { max-height: 60vh; }
-  .stages { margin-left: 0; }
+  .modes { margin-left: 0; }
   .hint { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -155,25 +182,19 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
 <div class="app">
   <header>
     <h1>CA1 뉴런 시뮬레이터</h1>
-    <span class="sub">뉴런 구조를 바꾸면 전기 신호가 어떻게 달라지는지 계산합니다</span>
-    <div class="stages" aria-label="개발 단계">
-      <span class="stage done">1 3D 시각화</span>
-      <span class="stage done">2 R 보정 연동</span>
-      <span class="stage done">3 구조 편집</span>
-      <span class="stage done">4 HH 시뮬레이션</span>
-      <span class="stage done">5 신호 시각화</span>
-    </div>
+    <select id="pick" class="pick" aria-label="뉴런 선택"></select>
+    <input type="search" class="inp search" id="q" placeholder="검색 (예: WT0601)" aria-label="뉴런 검색">
+    <label class="upload" id="drop" style="padding: 6px 10px" title="다른 SWC 파일을 불러옵니다"><input type="file" id="file" accept=".swc,.txt" multiple>SWC 불러오기</label>
+    <nav class="modes" id="appmode" aria-label="모드">
+      <button type="button" data-am="view" class="on">보기</button>
+      <button type="button" data-am="edit">편집</button>
+      <button type="button" data-am="sim">시뮬레이션</button>
+    </nav>
+    <span class="head-state" id="head-state"></span>
   </header>
 
-  <aside class="panel list" aria-label="뉴런 목록">
-    <div class="top">
-      <input type="search" class="inp" id="q" placeholder="이름으로 찾기 (예: WT0601)" aria-label="뉴런 검색">
-      <label class="upload" id="drop"><input type="file" id="file" accept=".swc,.txt" multiple>다른 SWC 파일 불러오기</label>
-    </div>
-    <div class="items" id="items"></div>
-  </aside>
-
   <div class="main">
+    <div class="status" id="status" aria-live="polite">뉴런을 불러오는 중…</div>
     <section class="panel view" id="view" aria-label="3D 뉴런">
       <canvas id="gl"></canvas>
       <div class="toolbar">
@@ -182,34 +203,18 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
           <button data-m="comp">연결 구조</button>
           <button data-m="radius">반지름</button>
           <button data-m="fix">보정 위치</button>
-          <button data-m="edit">편집 위치</button>
         </div>
         <label class="ctl" for="thick">굵기 표시 <input type="range" id="thick" min="1" max="8" step="0.5" value="3"><output id="thickv">×3</output></label>
         <label class="ctl" for="ghost"><input type="checkbox" id="ghost" checked> 원본 겹쳐 보기</label>
         <button class="btn" id="reset">시점 초기화</button>
       </div>
       <div class="legend" id="legend"></div>
-      <div class="hint" id="hint">드래그 회전 · 휠 확대 · 우클릭 이동 · 클릭 선택</div>
+      <div class="hint" id="hint"></div>
       <div class="tip" id="tip" hidden></div>
     </section>
 
-    <section class="panel dock" aria-label="막전위 기록계">
-      <div class="dock-row">
-        <button class="btn pri" id="run">시뮬레이션 실행</button>
-        <span>자극 <span class="stimtag" id="stimtag">자동</span></span>
-        <button class="btn" id="setstim">선택 노드를 자극 위치로</button>
-        <button class="btn" id="autostim">자동(가장 먼 말단)</button>
-        <label>자극 방식
-          <select id="stimmode">
-            <option value="density">R 방식: 밀도 × 노드 면적</option>
-            <option value="fixed">고정 전류</option>
-          </select></label>
-        <label id="stimvalwrap"><input type="number" id="stimval" step="any" value="20"> <span id="stimunit">µA/cm²</span></label>
-        <label>Δt <select id="dt"><option>0.01</option><option>0.005</option><option>0.0025</option></select> ms</label>
-        <label>시간 <input type="number" id="tend" value="20" min="1" max="200" step="1"> ms</label>
-        <label><input type="checkbox" id="cmp" checked> 원본과 비교</label>
-      </div>
-      <div class="status" id="status">계산 준비 중…</div>
+    <section class="panel dock" id="dock" aria-label="막전위 기록계">
+      <div class="dock-head"><span>막전위 기록계</span><button class="btn" id="fold" type="button">접기 ▴</button></div>
       <div class="charts">
         <div class="chart"><canvas id="cv"></canvas><div class="cap" id="capv"></div></div>
         <div class="chart"><canvas id="cg"></canvas><div class="cap" id="capg"></div></div>
@@ -220,21 +225,38 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
         <output id="timev">0.00 ms</output>
       </div>
       <div class="scroll-x"><table class="metrics" id="metrics"></table></div>
-      <div class="dock-row">
-        <button class="btn" id="conv">시간 간격 수렴성 검사</button>
-        <button class="btn" id="rk4">RK4와 비교</button>
-        <button class="btn" id="dlsim">결과 CSV 저장</button>
-      </div>
-      <div class="status" id="extra"></div>
     </section>
   </div>
 
   <aside class="panel info" aria-label="정보와 편집">
-    <div class="tabs" role="tablist">
-      <button role="tab" data-t="info" class="on">정보</button>
-      <button role="tab" data-t="edit">구조 편집</button>
-    </div>
     <div id="info" aria-live="polite"></div>
+    <div class="simctl" id="simctl">
+      <button class="btn pri big" id="run" type="button">시뮬레이션 실행</button>
+      <section class="sec">
+        <h2>자극 위치 <span class="id" id="stimtag">자동</span></h2>
+        <div class="btns"><button class="btn" id="setstim" type="button">선택 노드를 자극 위치로</button><button class="btn" id="autostim" type="button">자동 (가장 먼 말단)</button></div>
+      </section>
+      <section class="sec">
+        <h2>자극 세기</h2>
+        <div class="opts">
+          <button class="opt on" id="st-r" type="button"><b>R 방식</b><small>약함 · 기존 연구 방식</small></button>
+          <button class="opt" id="st-f" type="button"><b>활동전위 보기</b><small>0.1 nA 고정 전류</small></button>
+        </div>
+      </section>
+      <section class="sec">
+        <h2>결과 <span class="id">원본 → 수정본</span></h2>
+        <div id="res"><p class="empty">시뮬레이션을 실행하면 결과가 나옵니다</p></div>
+      </section>
+      <details class="adv">
+        <summary>고급 설정 (Δt, 시간, 자극 값, 수렴성, RK4, CSV)</summary>
+        <div class="rowf">자극 방식 <select id="stimmode"><option value="density">R 방식: 밀도 × 노드 면적</option><option value="fixed">고정 전류</option></select></div>
+        <div class="rowf">자극 값 <input type="number" id="stimval" step="any" value="20"> <span id="stimunit">µA/cm²</span></div>
+        <div class="rowf">Δt <select id="dt"><option>0.01</option><option>0.005</option><option>0.0025</option></select> ms · 시간 <input type="number" id="tend" value="20" min="1" max="200" step="1"> ms</div>
+        <div class="rowf"><label><input type="checkbox" id="cmp" checked> 원본과 비교</label></div>
+        <div class="btns"><button class="btn" id="conv" type="button">시간 간격 수렴성 검사</button><button class="btn" id="rk4" type="button">RK4와 비교</button><button class="btn" id="dlsim" type="button">결과 CSV 저장</button></div>
+        <div class="status" id="extra"></div>
+      </details>
+    </div>
   </aside>
 </div>
 
@@ -270,24 +292,27 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
   const nodeCount = t => t.split('\n').filter(l => l.trim() && l.trim()[0] !== '#').length;
   entries.forEach(e => e.nodes = nodeCount(e.text));
   let currentKey = null;
+  function findEntry(key) { return uploaded.find(e => e.key === key) || entries.find(e => e.key === key) || null; }
   function renderList() {
-    const q = $('#q').value.trim().toLowerCase(), box = $('#items'); box.innerHTML = '';
+    const q = $('#q').value.trim().toLowerCase(), sel = $('#pick'); sel.innerHTML = '';
     const sections = [];
     if (uploaded.length) sections.push(['불러온 파일', uploaded]);
     for (const [g, a, label] of GROUPS) sections.push([label, entries.filter(e => e.group === g && e.age === a)]);
     for (const [label, list] of sections) {
       const vis = list.filter(e => !q || e.name.toLowerCase().includes(q));
       if (!vis.length) continue;
-      const h = document.createElement('div'); h.className = 'gh'; h.innerHTML = `<span>${label}</span><span>${vis.length}</span>`; box.appendChild(h);
+      const og = document.createElement('optgroup'); og.label = `${label} (${vis.length}개)`;
       for (const e of vis) {
-        const b = document.createElement('button'); b.className = 'item' + (e.key === currentKey ? ' on' : ''); b.type = 'button';
-        b.innerHTML = `<span class="nm" title="${esc(e.name)}">${esc(e.name)}</span><span class="ct">${e.nodes}</span>`;
-        b.onclick = () => load(e);
-        box.appendChild(b);
+        const o = document.createElement('option'); o.value = e.key; o.textContent = `${e.name} · 노드 ${e.nodes}`;
+        if (e.key === currentKey) o.selected = true;
+        og.appendChild(o);
       }
+      sel.appendChild(og);
     }
+    if (!sel.children.length) { const o = document.createElement('option'); o.textContent = '검색 결과 없음'; o.disabled = true; sel.appendChild(o); }
   }
   $('#q').addEventListener('input', renderList);
+  $('#pick').addEventListener('change', ev => { const e = findEntry(ev.target.value); if (e) load(e); });
   function addFiles(files) {
     [...files].forEach(file => {
       const rd = new FileReader();
@@ -341,8 +366,11 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
   let selId = null, uniformType = false, editVersion = 0;
   let history = [], committed = null;   // 되돌리기
   let base = null;                       // 슬라이더 기준 상태(가지 선택 시점)
-  let tab = 'info';
-  let mode = store.get('mode2') || 'volt', thick = parseFloat(store.get('thick')) || 3;
+  let appMode = 'view';                 // 보기 | 편집 | 시뮬레이션
+  let scope = 'subtree';                // 선택 범위: node | branch | subtree | all
+  let multi = null;                     // Shift+클릭으로 고른 노드 id 집합
+  let mode = store.get('mode2') || 'comp', thick = parseFloat(store.get('thick')) || 3;
+  let viewMode = mode;                  // 보기 모드에서 마지막으로 고른 색 기준
   let sim = null, simOrig = null, stimId = null, tIndex = 0, playing = false, simStale = false;
 
   const snap = () => ({ recs: recs.map(a => a.slice()), rOv: new Map(rOv) });
@@ -356,7 +384,7 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
     let parsed, n;
     try { parsed = E.readSwcSafe(e.text); n = E.processRecords(parsed.recs); }
     catch (err) { showError(e, err.message); return; }
-    meta = e; currentKey = e.key; store.set('neuron', e.key);
+    meta = e; currentKey = e.key; store.set('neuron', e.key); multi = null;
     recs0 = parsed.recs.map(a => a.slice()); n0 = n; idx0 = indexOf(n);
     recs = recs0.map(a => a.slice()); rOv = new Map(); history = []; committed = snap(); editVersion = 0;
     { let ones = 0; for (let i = 0; i < n.N; i++) if (n.type[i] === 1) ones++; uniformType = ones >= n.N * 0.95; }
@@ -488,7 +516,7 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
     }
     L.innerHTML = html;
   }
-  $('#mode').addEventListener('click', ev => { const m = ev.target.dataset && ev.target.dataset.m; if (!m) return; mode = m; store.set('mode2', m); recolor(); });
+  $('#mode').addEventListener('click', ev => { const m = ev.target.dataset && ev.target.dataset.m; if (!m) return; mode = m; viewMode = m; store.set('mode2', m); recolor(); });
   $('#thick').value = thick; $('#thickv').textContent = '×' + thick;
   $('#thick').addEventListener('input', ev => { thick = parseFloat(ev.target.value); $('#thickv').textContent = '×' + thick; store.set('thick', thick); if (N) buildMatrices(); });
 
@@ -524,6 +552,7 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
       m.decompose(mesh.position, mesh.quaternion, mesh.scale); hiGroup.add(mesh);
     }
     marker.visible = true; marker.position.copy(pos[i]); marker.scale.setScalar(Math.max(N.r[i] * thick * 1.8, sceneRadius * 0.012));
+    for (const id of (multi || [])) { const k = idx.get(id); if (k === undefined) continue; const s = new THREE.Mesh(sphGeo, hiMat); s.position.copy(pos[k]); s.scale.setScalar(Math.max(N.r[k] * thick * 1.6, sceneRadius * 0.008)); hiGroup.add(s); }
     updateStimMarkers();
     return br;
   }
@@ -635,33 +664,34 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
 
   // ---------- 편집 탭 ----------
   function editSection(i) {
-    const br = branchOf(i), hasBr = !!br;
-    const dis = hasBr ? '' : 'disabled';
+    const br = branchOf(i), hasBr = !!br, dis = hasBr ? '' : 'disabled';
+    const sc = scopeNow(hasBr), cnt = scopeIds(i).length;
     return `<section class="sec">
       <h2>구조 편집 <span class="id">#${N.id[i]}</span></h2>
-      <p class="note">편집 탭이 열려 있는 동안 3D 화면에서 노드를 끌어 옮길 수 있습니다. 회전은 빈 곳을 드래그하세요.</p>
-      <div class="sub-h">선택한 가지 ${hasBr ? `(#${N.id[br.start]} → #${N.id[br.end]}, 하위 가지는 함께 따라 움직임)` : '— 뿌리가 아닌 노드를 선택하세요'}</div>
-      <label class="slider"><span>길이 배율</span><input type="range" id="e-len" min="0.2" max="3" step="0.01" value="1" ${dis}><output id="o-len">×1.00</output></label>
-      <label class="slider"><span>평면 회전 (z축)</span><input type="range" id="e-rot" min="-180" max="180" step="1" value="0" ${dis}><output id="o-rot">0°</output></label>
-      <label class="slider"><span>기울기</span><input type="range" id="e-tilt" min="-90" max="90" step="1" value="0" ${dis}><output id="o-tilt">0°</output></label>
-      <div class="sub-h">반지름 (계산에 반영 · 위의 굵기 표시는 화면용)</div>
-      <div class="rowf">적용 범위 <select id="e-scope">
-        <option value="branch" ${hasBr ? '' : 'disabled'}>이 가지</option>
-        <option value="subtree">이 노드와 하위 전체</option>
-        <option value="node" ${hasBr ? '' : 'selected'}>이 노드만</option>
-        <option value="all">뉴런 전체</option></select></div>
-      <label class="slider"><span>반지름 배율</span><input type="range" id="e-rad" min="0.1" max="3" step="0.01" value="1"><output id="o-rad">×1.00</output></label>
-      <div class="rowf">이 노드 반지름 <input type="number" id="e-r" step="0.01" min="0.01" value="${N.r[i].toFixed(4)}"> µm <button class="btn" id="e-rset">적용</button></div>
-      <div class="sub-h">가지 추가 · 삭제</div>
-      <div class="rowf">새 가지 길이 <input type="number" id="e-addlen" value="30" min="1" max="500"> µm <button class="btn" id="e-add">이 노드에서 새 가지</button></div>
-      <div class="btns"><button class="btn danger" id="e-del">이 노드와 하위 삭제 (${descendants(i).length}개)</button><span id="e-delc"></span></div>
-      <div class="sub-h">기록</div>
-      <div class="btns">
-        <button class="btn" id="e-undo" ${history.length ? '' : 'disabled'}>되돌리기 (${history.length})</button>
-        <button class="btn" id="e-revert" ${editVersion ? '' : 'disabled'}>원본으로 복원</button>
+      <div class="sub-h">① 무엇을 움직일까요 (끌기와 굵기에 적용)</div>
+      <div class="opts" role="group" aria-label="선택 범위">
+        <button class="opt ${sc === 'node' ? 'on' : ''}" data-scope="node" type="button"><b>노드 하나</b><small>이 점만</small></button>
+        <button class="opt ${sc === 'branch' ? 'on' : ''}" data-scope="branch" type="button" ${hasBr ? '' : 'disabled'}><b>이 가지만</b><small>분기점 사이 구간</small></button>
+        <button class="opt ${sc === 'subtree' ? 'on' : ''}" data-scope="subtree" type="button"><b>가지 + 하위 전체</b><small>이 노드 아래 전부</small></button>
+        <button class="opt ${sc === 'all' ? 'on' : ''}" data-scope="all" type="button"><b>뉴런 전체</b><small>모든 노드</small></button>
       </div>
+      <p class="note">${multi ? `Shift+클릭으로 고른 ${cnt}개 노드를 함께 움직입니다. 빈 곳을 클릭하면 해제됩니다.` : `현재 범위: ${cnt}개 노드 · Shift+클릭으로 여러 노드를 골라 함께 움직일 수 있습니다.`}</p>
+      <div class="sub-h">② 얼마나 바꿀까요</div>
+      <label class="slider"><span>길이</span><input type="range" id="e-len" min="0.2" max="3" step="0.01" value="1" ${dis}><output id="o-len">×1.00</output></label>
+      <label class="slider"><span>각도 (회전)</span><input type="range" id="e-rot" min="-180" max="180" step="1" value="0" ${dis}><output id="o-rot">0°</output></label>
+      <label class="slider"><span>굵기 (반지름)</span><input type="range" id="e-rad" min="0.1" max="3" step="0.01" value="1"><output id="o-rad">×1.00</output></label>
+      <p class="note">길이와 각도는 선택한 가지에, 굵기는 ①에서 고른 범위의 계산용 반지름에 적용됩니다.</p>
+      <div class="sub-h">③ 가지 추가 · 삭제</div>
+      <div class="rowf">새 가지 길이 <input type="number" id="e-addlen" value="30" min="1" max="500"> µm</div>
+      <div class="btns"><button class="btn" id="e-add" type="button">+ 가지 추가</button><button class="btn danger" id="e-del" type="button">선택 삭제 (${descendants(i).length}개)</button></div>
+      <div class="btns"><button class="btn" id="e-undo" type="button" ${history.length ? '' : 'disabled'}>↶ 되돌리기 (${history.length})</button><button class="btn" id="e-swc" type="button">수정한 SWC 저장</button></div>
       <p class="ok-line">${checkLine()}</p>
-      <div class="btns"><button class="btn" id="e-swc">수정한 SWC 저장</button><button class="btn" id="e-csv">계산값 CSV 저장 (R 2단계 형식)</button></div>
+      <details class="adv">
+        <summary>고급 (기울기, 반지름 숫자 입력, 원본 복원, CSV)</summary>
+        <label class="slider"><span>기울기</span><input type="range" id="e-tilt" min="-90" max="90" step="1" value="0" ${dis}><output id="o-tilt">0°</output></label>
+        <div class="rowf">이 노드 반지름 <input type="number" id="e-r" step="0.01" min="0.01" value="${N.r[i].toFixed(4)}"> µm <button class="btn" id="e-rset" type="button">적용</button></div>
+        <div class="btns"><button class="btn" id="e-revert" type="button" ${editVersion ? '' : 'disabled'}>원본으로 복원</button><button class="btn" id="e-csv" type="button">계산값 CSV 저장 (R 2단계 형식)</button></div>
+      </details>
       <p class="note">원본 SWC는 바뀌지 않습니다. 저장 파일에는 보정 기준과 편집 내역이 주석으로 남습니다.</p>
     </section>`;
   }
@@ -670,15 +700,45 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
     return `✓ 구조 검사 통과 · 노드 ${N.N}개 · ID 중복 없음 · 부모 연결 정상 · 순환 없음`;
   }
   function renderPanel() {
-    document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === tab));
-    view.classList.toggle('editing', tab === 'edit');
-    $('#hint').textContent = tab === 'edit' ? '노드를 끌어 이동 · 빈 곳 드래그 회전 · 휠 확대' : '드래그 회전 · 휠 확대 · 우클릭 이동 · 클릭 선택';
     const i = idx.get(selId);
-    if (tab === 'edit') captureBase();
-    if (tab === 'info') $('#info').innerHTML = neuronSummary() + nodeSection(i) + branchSection(branchOf(i));
-    else { $('#info').innerHTML = editSection(i) + nodeSection(i); bindEdit(); }
+    view.classList.toggle('editing', appMode === 'edit');
+    $('#hint').textContent = appMode === 'edit' ? '노드를 끌어 이동 · Shift+클릭 여러 개 선택 · 빈 곳 드래그 회전'
+      : appMode === 'sim' ? '드래그 회전 · 휠 확대 · 클릭한 노드를 자극 위치로 지정할 수 있습니다'
+      : '드래그 회전 · 휠 확대 · 우클릭 이동 · 클릭 선택';
+    $('#head-state').textContent = !meta ? '' : editVersion ? '수정본 · 원본과 비교 중' : (meta.val && meta.val.mism === 0 ? 'R 결과와 일치' : '');
+    if (appMode === 'sim' || i === undefined) return;
+    if (appMode === 'edit') { captureBase(); $('#info').innerHTML = editSection(i) + nodeSection(i); bindEdit(); }
+    else $('#info').innerHTML = neuronSummary() + nodeSection(i) + branchSection(branchOf(i));
   }
-  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.t; captureBase(); renderPanel(); });
+  // 선택 범위: 끌기와 굵기 조절이 적용되는 노드 목록
+  function scopeNow(hasBr) { return scope === 'branch' && !hasBr ? 'node' : scope; }
+  function scopeIds(i) {
+    if (multi && multi.size) { const out = [...multi].filter(id => idx.has(id)); if (out.length) return out; }
+    const br = branchOf(i);
+    if (scope === 'all') return Array.from(N.id);
+    if (scope === 'subtree') return descendants(i).map(k => N.id[k]);
+    if (scope === 'branch' && br) return br.nodes.map(k => N.id[k]);
+    return [N.id[i]];
+  }
+  function toggleMulti(id) {
+    multi = multi || new Set(); if (multi.has(id)) multi.delete(id); else multi.add(id);
+    if (!multi.size) multi = null;
+    selId = id; captureBase(); refreshSelection();
+  }
+  function setAppMode(m) {
+    const prev = appMode;
+    if (prev === 'view' && m !== 'view') viewMode = mode;
+    if (m === 'edit') mode = 'edit';
+    else if (m === 'view') mode = viewMode;
+    else if (m === 'sim' && prev !== 'sim') mode = 'volt';
+    if (prev === 'edit' && m !== 'edit') multi = null;
+    appMode = m;
+    document.querySelector('.app').dataset.mode = m;
+    document.querySelectorAll('#appmode button').forEach(b => { const on = b.dataset.am === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    recolor(); renderPanel(); highlight();
+    if (m === 'sim') { syncStim(); drawCharts(); renderMetrics(); }
+  }
+  document.querySelectorAll('#appmode button').forEach(b => b.onclick = () => setAppMode(b.dataset.am));
 
   // =====================================================================
   // 편집 동작
@@ -687,7 +747,7 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
     if (!N || !idx.has(selId)) { base = null; return; }
     const i = idx.get(selId), br = branchOf(i);
     const rUsed = new Map(); for (let k = 0; k < N.N; k++) rUsed.set(N.id[k], N.r[k]);
-    base = { s: snap(), rUsed, sel: selId,
+    base = { s: snap(), rUsed, sel: selId, multi: multi ? [...multi] : null,
       branch: br ? br.nodes.map(k => N.id[k]) : [], start: br ? N.id[br.start] : null, end: br ? N.id[br.end] : null,
       desc: br ? descendants(br.end, true).map(k => N.id[k]) : [], subtree: descendants(i).map(k => N.id[k]) };
   }
@@ -698,7 +758,7 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
   }
   function applySliders() {
     if (!base) return;
-    const L = +$('#e-len').value, th = +$('#e-rot').value * Math.PI / 180, ph = +$('#e-tilt').value * Math.PI / 180, k = +$('#e-rad').value, scope = $('#e-scope').value;
+    const L = +$('#e-len').value, th = +$('#e-rot').value * Math.PI / 180, ph = +$('#e-tilt').value * Math.PI / 180, k = +$('#e-rad').value;
     $('#o-len').textContent = '×' + L.toFixed(2); $('#o-rot').textContent = Math.round(+$('#e-rot').value) + '°'; $('#o-tilt').textContent = Math.round(+$('#e-tilt').value) + '°'; $('#o-rad').textContent = '×' + k.toFixed(2);
     recs = base.s.recs.map(a => a.slice()); rOv = new Map(base.s.rOv);
     const ri = new Map(); recs.forEach((a, j) => ri.set(a[0], j));
@@ -719,7 +779,7 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
       }
     }
     if (k !== 1) {
-      const ids = scope === 'branch' ? (base.branch.length ? base.branch : [base.sel]) : scope === 'subtree' ? base.subtree : scope === 'node' ? [base.sel] : recs.map(a => a[0]);
+      const ids = (base.multi && base.multi.length) ? base.multi : scope === 'branch' ? (base.branch.length ? base.branch : [base.sel]) : scope === 'subtree' ? base.subtree : scope === 'node' ? [base.sel] : recs.map(a => a[0]);
       for (const id of ids) rOv.set(id, base.rUsed.get(id) * k);
     }
     applyRecs(); highlight(); updateLiveNumbers();
@@ -738,8 +798,12 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
   }
   function restore(s) { recs = s.recs.map(a => a.slice()); rOv = new Map(s.rOv); applyRecs(); if (!idx.has(selId)) selId = N.id[0]; captureBase(); refreshSelection(); }
   function bindEdit() {
-    ['e-len', 'e-rot', 'e-tilt', 'e-rad'].forEach(id => { const el = $('#' + id); el.addEventListener('input', applySliders); el.addEventListener('change', commit); });
-    $('#e-scope').addEventListener('change', () => { if (+$('#e-rad').value !== 1) { applySliders(); commit(); } });
+    ['e-len', 'e-rot', 'e-tilt', 'e-rad'].forEach(id => { const el = $('#' + id); if (!el) return; el.addEventListener('input', applySliders); el.addEventListener('change', commit); });
+    document.querySelectorAll('[data-scope]').forEach(b => b.onclick = () => {
+      if (b.disabled) return;
+      if (+$('#e-rad').value !== 1) { applySliders(); commit(); }   // 아직 적용 안 된 굵기는 이전 범위에 확정
+      scope = b.dataset.scope; renderPanel();
+    });
     $('#e-rset').onclick = () => {
       const v = parseFloat($('#e-r').value); if (!(v > 0)) { setStatus('반지름은 0보다 커야 합니다.', 'bad'); return; }
       rOv.set(selId, v); applyRecs(); commit(); captureBase(); renderPanel();
@@ -748,7 +812,7 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
     let armed = false;
     $('#e-del').onclick = () => {
       const i = idx.get(selId), del = new Set(descendants(i).map(k => N.id[k]));
-      if (del.size >= N.N) { $('#e-delc').innerHTML = '<span class="err">뉴런 전체를 지울 수는 없습니다.</span>'; return; }
+      if (del.size >= N.N) { setStatus('뉴런 전체를 지울 수는 없습니다.', 'bad'); return; }
       if (!armed) { armed = true; $('#e-del').textContent = `한 번 더 누르면 ${del.size}개 삭제`; return; }
       const parentId = N.parent[i] >= 0 ? N.id[N.parent[i]] : null;
       recs = recs.filter(a => !del.has(a[0])); for (const id of del) rOv.delete(id);
@@ -814,13 +878,22 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
   function ndc(ev) { const r = canvas.getBoundingClientRect(); return new THREE.Vector2((ev.clientX - r.left) / r.width * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1); }
   let down = null, drag = null;
   canvas.addEventListener('pointerdown', ev => {
-    down = { x: ev.clientX, y: ev.clientY, b: ev.button }; tip.hidden = true;
-    if (tab === 'edit' && ev.button === 0) {
+    down = { x: ev.clientX, y: ev.clientY, b: ev.button, shift: ev.shiftKey }; tip.hidden = true;
+    if (appMode === 'edit' && ev.button === 0) {
       const i = pick(ev.clientX, ev.clientY, ev.pointerType === 'touch' ? 24 : 12);
       if (i >= 0) {
-        controls.enabled = false; selId = N.id[i];
+        controls.enabled = false;
+        const id = N.id[i];
+        let ids;
+        if (ev.shiftKey) ids = multi && multi.has(id) ? [...multi] : [id];
+        else { if (!(multi && multi.has(id))) multi = null; ids = scopeIds(i); }
+        const rowOf = new Map(recs.map(a => [a[0], a]));
         const n = new THREE.Vector3(); camera.getWorldDirection(n); plane.setFromNormalAndCoplanarPoint(n, pos[i].clone());
-        drag = { id: N.id[i], moved: false }; canvas.setPointerCapture(ev.pointerId);
+        ray.setFromCamera(ndc(ev), camera);
+        const h0 = new THREE.Vector3(); if (!ray.ray.intersectPlane(plane, h0)) h0.copy(pos[i]);
+        // 끄는 동안 범위 안의 모든 노드가 같은 만큼 움직인다
+        drag = { id, h0, moved: false, rows: ids.map(k => { const a = rowOf.get(k); return { a, o: [a[2], a[3], a[4]] }; }) };
+        canvas.setPointerCapture(ev.pointerId);
       }
     }
   });
@@ -828,26 +901,32 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
     if (drag) {
       ray.setFromCamera(ndc(ev), camera);
       if (ray.ray.intersectPlane(plane, hit)) {
-        const a = recs.find(r => r[0] === drag.id);
-        a[2] = hit.x + center[0]; a[3] = hit.y + center[1]; a[4] = hit.z + center[2]; drag.moved = true;
+        const dx = hit.x - drag.h0.x, dy = hit.y - drag.h0.y, dz = hit.z - drag.h0.z;
+        for (const d of drag.rows) { d.a[2] = d.o[0] + dx; d.a[3] = d.o[1] + dy; d.a[4] = d.o[2] + dz; }
+        drag.moved = true;
         applyRecs(); highlight();
       }
       return;
     }
     if (down || ev.pointerType === 'touch') return;
     const i = pick(ev.clientX, ev.clientY, 10), rect = view.getBoundingClientRect();
-    if (i >= 0) { tip.hidden = false; tip.style.left = (ev.clientX - rect.left) + 'px'; tip.style.top = (ev.clientY - rect.top) + 'px'; tip.textContent = `#${N.id[i]} · r ${f(N.r[i], 3)} µm`; canvas.style.cursor = tab === 'edit' ? 'move' : 'pointer'; }
+    if (i >= 0) { tip.hidden = false; tip.style.left = (ev.clientX - rect.left) + 'px'; tip.style.top = (ev.clientY - rect.top) + 'px'; tip.textContent = `#${N.id[i]} · r ${f(N.r[i], 3)} µm`; canvas.style.cursor = appMode === 'edit' ? 'move' : 'pointer'; }
     else { tip.hidden = true; canvas.style.cursor = 'grab'; }
   });
   canvas.addEventListener('pointerup', ev => {
-    if (drag) {
-      controls.enabled = true; const d = drag; drag = null; down = null;
-      if (d.moved) { commit(); setStatus(`노드 #${d.id}를 옮겼습니다. 연결된 구간 길이와 막면적을 다시 계산했습니다.`); }
+    const d = drag; drag = null; controls.enabled = true;
+    if (d && d.moved) {
+      down = null; commit();
+      setStatus(`노드 ${d.rows.length}개를 옮겼습니다. 연결된 구간 길이와 막면적을 다시 계산했습니다.`);
       captureBase(); refreshSelection(); return;
     }
     if (!down) return;
     const moved = Math.hypot(ev.clientX - down.x, ev.clientY - down.y);
-    if (down.b === 0 && moved < 5) { const i = pick(ev.clientX, ev.clientY, ev.pointerType === 'touch' ? 24 : 14); if (i >= 0) select(i); }
+    if (down.b === 0 && moved < 5) {
+      const i = pick(ev.clientX, ev.clientY, ev.pointerType === 'touch' ? 24 : 14);
+      if (i >= 0) { if (down.shift) toggleMulti(N.id[i]); else { multi = null; select(i); } }
+      else if (!down.shift && multi) { multi = null; captureBase(); refreshSelection(); }
+    }
     down = null;
   });
   canvas.addEventListener('pointerleave', () => { tip.hidden = true; });
@@ -865,10 +944,15 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
     else o.STIM_DENSITY_UA_CM2 = +$('#stimval').value || 0;
     return o;
   }
-  $('#stimmode').addEventListener('change', () => {
+  function syncStim() {
     const fixed = $('#stimmode').value === 'fixed';
-    $('#stimval').value = fixed ? 0.1 : 20; $('#stimunit').textContent = fixed ? 'nA' : 'µA/cm²';
-  });
+    $('#stimunit').textContent = fixed ? 'nA' : 'µA/cm²';
+    $('#st-r').classList.toggle('on', !fixed); $('#st-f').classList.toggle('on', fixed);
+  }
+  $('#stimmode').addEventListener('change', () => { $('#stimval').value = $('#stimmode').value === 'fixed' ? 0.1 : 20; syncStim(); });
+  $('#st-r').onclick = () => { $('#stimmode').value = 'density'; $('#stimval').value = 20; syncStim(); runSim(); };
+  $('#st-f').onclick = () => { $('#stimmode').value = 'fixed'; $('#stimval').value = 0.1; syncStim(); runSim(); };
+  $('#fold').onclick = () => { const on = $('#dock').classList.toggle('folded'); $('#fold').textContent = on ? '펼치기 ▾' : '접기 ▴'; };
   function runSim() {
     setStatus('계산 중…');
     requestAnimationFrame(() => setTimeout(() => {
@@ -885,7 +969,6 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
         tl.value = tIndex;
         $('#stimtag').textContent = `#${N.id[sim.stim]}${stimId === null ? ' (자동)' : ''}`;
         renderSimStatus(performance.now() - t0);
-        if (mode !== 'volt' && !store.get('mode2')) mode = 'volt';
         recolor(); highlight(); drawCharts(); renderMetrics(); renderPanel();
       } catch (err) { sim = null; setStatus('계산 실패: ' + err.message, 'bad'); drawCharts(); renderMetrics(); }
     }, 0));
@@ -985,8 +1068,13 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
     return { stimId: S.ids[S.stim], proxId: S.ids[S.prox], sp, pp, ratio: sp > 1e-9 ? pp / sp * 100 : NaN, delay: S.peakT[S.prox] - S.peakT[S.stim], sel: k >= 0 ? S.peak[k] : NaN, selT: k >= 0 ? S.peakT[k] : NaN };
   }
   function renderMetrics() {
-    const tb = $('#metrics'); const a = metricsOf(simOrig), b = metricsOf(sim);
-    if (!b) { tb.innerHTML = ''; return; }
+    const tb = $('#metrics'), RS = $('#res'); const a = metricsOf(simOrig), b = metricsOf(sim);
+    if (!b) { tb.innerHTML = ''; if (RS) RS.innerHTML = '<p class="empty">시뮬레이션을 실행하면 결과가 나옵니다</p>'; return; }
+    if (RS) {
+      const sumRows = [['전달 비율 (근위 ÷ 자극)', 'ratio', '%', 1], ['근위 최대 탈분극', 'pp', 'mV', 2], ['전달 지연 (근위 − 자극)', 'delay', 'ms', 2]];
+      RS.innerHTML = sumRows.map(([lab, k, u, d]) => `<div class="kv"><span>${lab}</span><span>${a ? `${U(a[k], u, d)} → ` : ''}${U(b[k], u, d)}</span></div>`).join('')
+        + (a ? '' : `<p class="note">수정한 뉴런이 아니므로 원본과 비교하지 않았습니다.</p>`);
+    }
     const rows = [['자극 지점 최대 탈분극', 'sp', 'mV', 4], ['근위 지점 최대 탈분극', 'pp', 'mV', 4], ['비율 (근위 ÷ 자극)', 'ratio', '%', 3], ['최고점 시각 차이 (근위 − 자극)', 'delay', 'ms', 3], [`선택 #${selId} 최대 탈분극`, 'sel', 'mV', 4]];
     const head = a ? `<tr><th></th><th>원본</th><th>수정본</th><th>변화</th></tr>` : `<tr><th></th><th>${editVersion ? '수정본' : '현재 뉴런'} (자극 #${b.stimId} · 근위 #${b.proxId})</th></tr>`;
     tb.innerHTML = head + rows.map(([lab, k, u, d]) => {
@@ -1037,5 +1125,7 @@ dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
   const last = entries.find(e => e.key === store.get('neuron'));
   const wt0601 = entries.filter(e => e.mouse === 'WT0601').sort((a, b) => b.nodes - a.nodes)[0];
   load(last || wt0601 || entries[0]);
+  syncStim();
+  setAppMode('view');
 })();
 </script>
