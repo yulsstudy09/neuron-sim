@@ -19,7 +19,8 @@ const neurons = swcs.map(f => {
 const data = JSON.stringify({ built: new Date().toISOString().slice(0, 10), neurons }).replace(/</g, '\\u003c');
 let html = fs.readFileSync(path.join(root, 'src/app.html'), 'utf8');
 const engine = fs.readFileSync(path.join(root, 'src/engine.js'), 'utf8');
-html = html.replace('/*__ENGINE__*/', () => engine).replace('__DATA__', () => data);
+const hh = fs.readFileSync(path.join(root, 'src/hh.js'), 'utf8');
+html = html.replace('/*__ENGINE__*/', () => engine).replace('/*__HH__*/', () => hh).replace('__DATA__', () => data);
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist/neuron-sim.html'), html);
 console.log('neurons', neurons.length, 'size', (html.length / 1e6).toFixed(2), 'MB');

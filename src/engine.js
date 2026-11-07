@@ -56,8 +56,16 @@
 
   // ---- 전체 1·2단계 처리 (R 루프 본문과 동일) ----
   function processSwc(text, cfgOverride) {
-    const C = Object.assign({}, CFG, cfgOverride || {});
     const { recs, nanLines } = readSwcSafe(text);
+    const n = processRecords(recs, cfgOverride);
+    n.nanLines = nanLines;
+    return n;
+  }
+
+  // recs: [id,type,x,y,z,r원본,pid] 배열. rOverride: Map(id → 사용자가 지정한 계산용 반지름)
+  function processRecords(recs, cfgOverride, rOverride) {
+    const C = Object.assign({}, CFG, cfgOverride || {});
+    const nanLines = [];
     const N = recs.length;
     const id = new Float64Array(N), type = new Int32Array(N), pid = new Float64Array(N);
     const x = new Float64Array(N), y = new Float64Array(N), z = new Float64Array(N);
@@ -108,6 +116,12 @@
       }
     }
     for (let i = 0; i < N; i++) if (wasZero[i]) r[i] = C.R_ZERO_REPLACEMENT_UM;
+    // 사용자 편집 반지름 (보정 이후에 덮어씀; 원본 값은 rOrig에 그대로)
+    const rEdited = new Uint8Array(N);
+    if (rOverride && rOverride.size) for (let i = 0; i < N; i++) {
+      const v = rOverride.get(id[i]);
+      if (v !== undefined && Number.isFinite(v) && v > 0) { r[i] = v; rEdited[i] = 1; }
+    }
 
     const childCount = new Int32Array(N);
     for (const c of children) childCount[parent[c]]++;
@@ -152,7 +166,7 @@
 
     return {
       N, id, type, x, y, z, pid, parent, roots, children: kids2, comp,
-      rOrig, r, invalidOrig, wasZero, childCount, geomLen, effLen, lenZero,
+      rOrig, r, rEdited, invalidOrig, wasZero, childCount, geomLen, effLen, lenZero,
       area, cap, Ra, gNa, gK, gL, repairs, nanLines, cfg: C,
     };
   }
@@ -170,7 +184,7 @@
     return out.join('\n');
   }
 
-  const api = { CFG, readSwcSafe, processSwc, toParamsCsv, PARAM_COLS, rowValues, median };
+  const api = { CFG, readSwcSafe, processSwc, processRecords, toParamsCsv, PARAM_COLS, rowValues, median };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.NeuronEngine = api;
 })(typeof window !== 'undefined' ? window : globalThis);

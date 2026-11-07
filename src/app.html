@@ -3,37 +3,29 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
 <style>
-/* Layout: 현미경 관찰 화면 — 왼쪽 시료 목록 · 가운데 3D 관찰창 · 오른쪽 측정값 패널. 단일 다크 테마(형광 현미경 화면을 의도). */
+/* Layout: 현미경 관찰 화면 — 왼쪽 시료 목록 · 가운데 3D 관찰창과 그 아래 막전위 기록계 · 오른쪽 측정/편집 패널. 단일 다크 테마(형광 현미경 화면을 의도). */
 :root {
   color-scheme: dark;
-  --bg: #0a0f14;          /* 관찰실 바탕 */
-  --panel: #111921;       /* 패널 */
-  --panel-2: #16212b;     /* 패널 안의 구획 */
-  --line: #233140;        /* 구분선 */
-  --fg: #dfe7ee;          /* 본문 */
-  --muted: #8396a8;       /* 보조 글자 */
-  --accent: #ff4fa3;      /* 선택(마젠타 마커) */
-  --ok: #4fd1a5;          /* 검증 일치 */
-  --warn: #ffb547;        /* 보정값 */
-  --bad: #ff6b7d;         /* 비정상값 */
+  --bg: #0a0f14; --panel: #111921; --panel-2: #16212b; --line: #233140;
+  --fg: #dfe7ee; --muted: #8396a8; --accent: #ff4fa3;
+  --ok: #4fd1a5; --warn: #ffb547; --bad: #ff6b7d;
   --soma: #f2b84b; --axon: #9aa5b1; --basal: #57c7e3; --apical: #a98cf0;
+  --gm: #ff7a6b; --gh: #6aa8ff; --gn: #5fd38d;
   --sans: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --r: 10px;
 }
 html, body { height: 100%; }
-body {
-  background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px; line-height: 1.5;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 12px; box-sizing: border-box;
-}
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px; box-sizing: border-box; }
 *, *::before, *::after { box-sizing: border-box; }
 button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:disabled, input:disabled, select:disabled { opacity: .45; cursor: not-allowed; }
 
 .app { height: 100%; display: grid; gap: 12px;
-  grid-template-columns: 250px minmax(0, 1fr) 340px; grid-template-rows: auto minmax(0, 1fr);
-  grid-template-areas: "head head head" "list view info"; }
+  grid-template-columns: 240px minmax(0, 1fr) 350px; grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "head head head" "list main info"; }
 header { grid-area: head; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
 header h1 { font-size: 18px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
 header .sub { color: var(--muted); font-size: 13px; }
@@ -44,8 +36,8 @@ header .sub { color: var(--muted); font-size: 13px; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); min-height: 0; min-width: 0; }
 .list { grid-area: list; display: flex; flex-direction: column; overflow: hidden; }
 .list .top { padding: 12px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--line); }
-.list input[type=search] { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
-.upload { display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px dashed var(--line); border-radius: 8px; padding: 8px; color: var(--muted); cursor: pointer; font-size: 13px; }
+.inp { width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; }
+.upload { display: flex; align-items: center; justify-content: center; border: 1px dashed var(--line); border-radius: 8px; padding: 8px; color: var(--muted); cursor: pointer; font-size: 13px; }
 .upload:hover, .upload.drag { border-color: var(--accent); color: var(--fg); }
 .upload input { display: none; }
 .items { overflow-y: auto; padding: 4px 0 8px; }
@@ -56,27 +48,63 @@ header .sub { color: var(--muted); font-size: 13px; }
 .item .nm { font-family: var(--mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .item .ct { font-family: var(--mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-.view { grid-area: view; position: relative; overflow: hidden; background: radial-gradient(ellipse at 50% 40%, #0f1a24 0%, var(--bg) 75%); }
+.main { grid-area: main; display: grid; grid-template-rows: minmax(380px, 1fr) auto; gap: 12px; min-height: 0; min-width: 0; overflow-y: auto; }
+.view { position: relative; overflow: hidden; background: radial-gradient(ellipse at 50% 40%, #0f1a24 0%, var(--bg) 75%); }
 #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.view.editing { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent); }
 .tip { position: absolute; pointer-events: none; font-family: var(--mono); font-size: 11px; background: rgba(10,15,20,.88); border: 1px solid var(--line); padding: 3px 7px; border-radius: 6px; transform: translate(12px, -50%); white-space: nowrap; }
 .toolbar { position: absolute; left: 10px; right: 10px; top: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; pointer-events: none; }
 .toolbar > * { pointer-events: auto; }
-.seg { display: flex; background: rgba(17,25,33,.92); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+.seg { display: flex; background: rgba(17,25,33,.92); border: 1px solid var(--line); border-radius: 8px; padding: 2px; flex-wrap: wrap; }
 .seg button { background: none; border: 0; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; color: var(--muted); }
 .seg button.on { background: var(--panel-2); color: var(--fg); box-shadow: inset 0 0 0 1px var(--line); }
 .ctl { display: flex; align-items: center; gap: 8px; background: rgba(17,25,33,.92); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: 12px; color: var(--muted); }
-.ctl input[type=range] { width: 90px; accent-color: var(--accent); }
+.ctl input[type=range] { width: 80px; accent-color: var(--accent); }
 .ctl output { font-family: var(--mono); color: var(--fg); min-width: 2.5em; }
-.btn { background: rgba(17,25,33,.92); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 12px; }
-.btn:hover { border-color: var(--muted); }
+.btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 12px; }
+.toolbar .btn { background: rgba(17,25,33,.92); }
+.btn:hover:not(:disabled) { border-color: var(--muted); }
+.btn.pri { background: var(--accent); border-color: var(--accent); color: #1a0710; font-weight: 600; }
+.btn.danger { color: var(--bad); }
 .legend { position: absolute; left: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 3px; background: rgba(17,25,33,.9); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; max-width: calc(100% - 20px); }
 .legend .row { display: flex; align-items: center; gap: 8px; }
 .legend .sw { width: 10px; height: 10px; border-radius: 50%; flex: none; }
-.legend .ramp { width: 120px; height: 8px; border-radius: 4px; }
+.legend .ramp { width: 140px; height: 8px; border-radius: 4px; }
 .legend .n { font-family: var(--mono); color: var(--muted); margin-left: auto; padding-left: 10px; }
 .hint { position: absolute; right: 10px; bottom: 10px; font-size: 11px; color: var(--muted); text-align: right; }
 
+/* 막전위 기록계 */
+.dock { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; }
+.dock-row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-size: 12.5px; }
+.dock-row label { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.dock-row select, .dock-row input[type=number] { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; color: var(--fg); }
+.dock-row input[type=number] { width: 72px; font-family: var(--mono); }
+.stimtag { font-family: var(--mono); color: var(--soma); }
+.charts { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; }
+.chart { position: relative; height: 170px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; }
+.chart canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.chart .cap { position: absolute; left: 10px; right: 10px; top: 6px; white-space: nowrap; overflow: hidden; font-size: 11.5px; color: var(--muted); pointer-events: none; display: flex; gap: 10px; flex-wrap: wrap; }
+.chart .cap i { font-style: normal; display: inline-flex; align-items: center; gap: 4px; }
+.chart .cap i::before { content: ""; width: 12px; height: 2px; background: var(--c); }
+.chart .cap i.dash::before { background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px); }
+.timebar { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.timebar input { flex: 1; accent-color: var(--accent); min-width: 0; }
+.timebar output { font-family: var(--mono); min-width: 6.5em; text-align: right; }
+.status { font-size: 12.5px; color: var(--muted); }
+.status.warn { color: var(--warn); }
+.status.bad { color: var(--bad); }
+.metrics { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.metrics th, .metrics td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; }
+.metrics th:first-child, .metrics td:first-child { text-align: left; color: var(--muted); font-weight: 400; }
+.metrics td { font-family: var(--mono); }
+.metrics th { color: var(--muted); font-weight: 500; font-size: 11.5px; }
+.metrics .d-up { color: var(--ok); } .metrics .d-down { color: var(--bad); }
+.scroll-x { overflow-x: auto; }
+
 .info { grid-area: info; overflow-y: auto; display: flex; flex-direction: column; }
+.tabs { display: flex; gap: 4px; padding: 10px 12px 0; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); z-index: 1; }
+.tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 6px 10px 8px; cursor: pointer; color: var(--muted); font-size: 13px; }
+.tabs button.on { color: var(--fg); border-bottom-color: var(--accent); }
 .sec { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
 .sec:last-child { border-bottom: 0; }
 .sec h2 { font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: var(--muted); margin: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -84,28 +112,39 @@ header .sub { color: var(--muted); font-size: 13px; }
 .title { font-family: var(--mono); font-size: 13px; word-break: break-all; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); }
-.chip.wt { color: var(--basal); } .chip.ad { color: var(--apical); }
+.chip.wt { color: var(--basal); } .chip.ad { color: var(--apical); } .chip.ed { color: var(--accent); }
 dl { display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; margin: 0; }
 dt { color: var(--muted); font-size: 12.5px; }
 dd { margin: 0; text-align: right; font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 dd .u { color: var(--muted); margin-left: 3px; }
-dd.hl { color: var(--warn); }
+dd.hl { color: var(--warn); } dd.ed { color: var(--accent); }
 .sub-h { font-size: 12px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 8px; }
 .badge { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--ok) 10%, transparent); border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
 .badge.none { background: var(--panel-2); border-color: var(--line); color: var(--muted); }
 .badge b { color: var(--ok); font-weight: 600; }
 .badge .d { color: var(--muted); font-family: var(--mono); font-size: 11px; display: block; }
-.note { font-size: 12px; color: var(--muted); }
+.note { font-size: 12px; color: var(--muted); margin: 0; }
 .fix { font-size: 12.5px; padding: 7px 10px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); background: color-mix(in srgb, var(--warn) 8%, transparent); }
 .fix.bad { border-color: color-mix(in srgb, var(--bad) 40%, transparent); background: color-mix(in srgb, var(--bad) 8%, transparent); }
-.empty { color: var(--muted); font-size: 13px; }
-.err { color: var(--bad); font-size: 12.5px; }
+.fix.info { border-color: var(--line); background: var(--panel-2); }
+.empty { color: var(--muted); font-size: 13px; margin: 0; }
+.err { color: var(--bad); font-size: 12.5px; margin: 0; }
+.slider { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) 4.2em; align-items: center; gap: 8px; font-size: 12.5px; }
+.slider span { color: var(--muted); }
+.slider input { width: 100%; accent-color: var(--accent); }
+.slider output { font-family: var(--mono); text-align: right; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.rowf { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--muted); flex-wrap: wrap; }
+.rowf select, .rowf input { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; color: var(--fg); }
+.rowf input[type=number] { width: 84px; font-family: var(--mono); }
+.ok-line { font-size: 12px; color: var(--ok); margin: 0; }
 
+@media (max-width: 1100px) { .app { grid-template-columns: 200px minmax(0, 1fr) 320px; } .charts { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 960px) {
   html, body { height: auto; }
-  .app { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: none;
-    grid-template-areas: "head" "view" "info" "list"; }
-  .view { height: 64vh; min-height: 340px; }
+  .app { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "head" "main" "info" "list"; }
+  .main { grid-template-rows: auto auto; }
+  .view { height: 58vh; min-height: 320px; }
   .list { max-height: 60vh; }
   .stages { margin-left: 0; }
   .hint { display: none; }
@@ -116,60 +155,103 @@ dd.hl { color: var(--warn); }
 <div class="app">
   <header>
     <h1>CA1 뉴런 시뮬레이터</h1>
-    <span class="sub">SWC 3D 재구성 · R 보정값과 전기 파라미터 확인</span>
+    <span class="sub">뉴런 구조를 바꾸면 전기 신호가 어떻게 달라지는지 계산합니다</span>
     <div class="stages" aria-label="개발 단계">
       <span class="stage done">1 3D 시각화</span>
       <span class="stage done">2 R 보정 연동</span>
-      <span class="stage">3 구조 편집</span>
-      <span class="stage">4 HH 시뮬레이션</span>
-      <span class="stage">5 신호 시각화</span>
+      <span class="stage done">3 구조 편집</span>
+      <span class="stage done">4 HH 시뮬레이션</span>
+      <span class="stage done">5 신호 시각화</span>
     </div>
   </header>
 
   <aside class="panel list" aria-label="뉴런 목록">
     <div class="top">
-      <input type="search" id="q" placeholder="이름으로 찾기 (예: WT0601)" aria-label="뉴런 검색">
+      <input type="search" class="inp" id="q" placeholder="이름으로 찾기 (예: WT0601)" aria-label="뉴런 검색">
       <label class="upload" id="drop"><input type="file" id="file" accept=".swc,.txt" multiple>다른 SWC 파일 불러오기</label>
     </div>
     <div class="items" id="items"></div>
   </aside>
 
-  <main class="panel view" id="view">
-    <canvas id="gl"></canvas>
-    <div class="toolbar">
-      <div class="seg" id="mode" role="group" aria-label="색상 기준">
-        <button data-m="type" class="on">부위</button>
-        <button data-m="comp">연결 구조</button>
-        <button data-m="radius">반지름</button>
-        <button data-m="fix">보정 위치</button>
+  <div class="main">
+    <section class="panel view" id="view" aria-label="3D 뉴런">
+      <canvas id="gl"></canvas>
+      <div class="toolbar">
+        <div class="seg" id="mode" role="group" aria-label="색상 기준">
+          <button data-m="volt">막전위</button>
+          <button data-m="comp">연결 구조</button>
+          <button data-m="radius">반지름</button>
+          <button data-m="fix">보정 위치</button>
+          <button data-m="edit">편집 위치</button>
+        </div>
+        <label class="ctl" for="thick">굵기 표시 <input type="range" id="thick" min="1" max="8" step="0.5" value="3"><output id="thickv">×3</output></label>
+        <label class="ctl" for="ghost"><input type="checkbox" id="ghost" checked> 원본 겹쳐 보기</label>
+        <button class="btn" id="reset">시점 초기화</button>
       </div>
-      <label class="ctl" for="thick">굵기 확대 <input type="range" id="thick" min="1" max="8" step="0.5" value="3"><output id="thickv">×3</output></label>
-      <button class="btn" id="reset">시점 초기화</button>
-    </div>
-    <div class="legend" id="legend"></div>
-    <div class="hint">드래그 회전 · 휠 확대 · 우클릭 이동 · 클릭 선택</div>
-    <div class="tip" id="tip" hidden></div>
-  </main>
+      <div class="legend" id="legend"></div>
+      <div class="hint" id="hint">드래그 회전 · 휠 확대 · 우클릭 이동 · 클릭 선택</div>
+      <div class="tip" id="tip" hidden></div>
+    </section>
 
-  <aside class="panel info" id="info" aria-live="polite"></aside>
+    <section class="panel dock" aria-label="막전위 기록계">
+      <div class="dock-row">
+        <button class="btn pri" id="run">시뮬레이션 실행</button>
+        <span>자극 <span class="stimtag" id="stimtag">자동</span></span>
+        <button class="btn" id="setstim">선택 노드를 자극 위치로</button>
+        <button class="btn" id="autostim">자동(가장 먼 말단)</button>
+        <label>자극 방식
+          <select id="stimmode">
+            <option value="density">R 방식: 밀도 × 노드 면적</option>
+            <option value="fixed">고정 전류</option>
+          </select></label>
+        <label id="stimvalwrap"><input type="number" id="stimval" step="any" value="20"> <span id="stimunit">µA/cm²</span></label>
+        <label>Δt <select id="dt"><option>0.01</option><option>0.005</option><option>0.0025</option></select> ms</label>
+        <label>시간 <input type="number" id="tend" value="20" min="1" max="200" step="1"> ms</label>
+        <label><input type="checkbox" id="cmp" checked> 원본과 비교</label>
+      </div>
+      <div class="status" id="status">계산 준비 중…</div>
+      <div class="charts">
+        <div class="chart"><canvas id="cv"></canvas><div class="cap" id="capv"></div></div>
+        <div class="chart"><canvas id="cg"></canvas><div class="cap" id="capg"></div></div>
+      </div>
+      <div class="timebar">
+        <button class="btn" id="play" aria-label="재생">▶ 재생</button>
+        <input type="range" id="time" min="0" max="0" value="0" aria-label="시간">
+        <output id="timev">0.00 ms</output>
+      </div>
+      <div class="scroll-x"><table class="metrics" id="metrics"></table></div>
+      <div class="dock-row">
+        <button class="btn" id="conv">시간 간격 수렴성 검사</button>
+        <button class="btn" id="rk4">RK4와 비교</button>
+        <button class="btn" id="dlsim">결과 CSV 저장</button>
+      </div>
+      <div class="status" id="extra"></div>
+    </section>
+  </div>
+
+  <aside class="panel info" aria-label="정보와 편집">
+    <div class="tabs" role="tablist">
+      <button role="tab" data-t="info" class="on">정보</button>
+      <button role="tab" data-t="edit">구조 편집</button>
+    </div>
+    <div id="info" aria-live="polite"></div>
+  </aside>
 </div>
 
 <script id="neuron-data" type="application/json">__DATA__</script>
 <script>/*__ENGINE__*/</script>
+<script>/*__HH__*/</script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
 (function () {
-  const E = window.NeuronEngine;
+  const E = window.NeuronEngine, H = window.NeuronHH;
   const DATA = JSON.parse(document.getElementById('neuron-data').textContent);
   const $ = s => document.querySelector(s);
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  const TYPE_NAME = { 0: '미지정(type 0)', 1: '세포체(soma)', 2: '축삭(axon)', 3: '기저 수상돌기', 4: '첨단 수상돌기' };
-  const TYPE_COLOR = { 1: css('--soma'), 2: css('--axon'), 3: css('--basal'), 4: css('--apical') };
-  const OTHER = '#7d8a96';
   const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+  const TYPE_NAME = { 0: '미지정(type 0)', 1: '세포체(soma)', 2: '축삭(axon)', 3: '기저 수상돌기', 4: '첨단 수상돌기' };
 
-  // ---------- 숫자 표시 ----------
   function f(v, d = 3) {
     if (!Number.isFinite(v)) return '—';
     const a = Math.abs(v);
@@ -177,18 +259,19 @@ dd.hl { color: var(--warn); }
     return Number(v.toFixed(d)).toLocaleString('en-US', { maximumFractionDigits: d });
   }
   const U = (v, u, d) => `${f(v, d)}<span class="u">${u}</span>`;
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  // ---------- 뉴런 목록 ----------
+  // =====================================================================
+  // 뉴런 목록
+  // =====================================================================
   const entries = DATA.neurons.map(n => ({ ...n, key: n.file }));
   const uploaded = [];
   const GROUPS = [['WT', 'M06', '정상 WT · 6개월'], ['WT', 'M12', '정상 WT · 12개월'], ['AD', 'M06', '알츠하이머 AD · 6개월'], ['AD', 'M12', '알츠하이머 AD · 12개월']];
-  const nodeCount = t => t.split('\n').filter(l => l && l[0] !== '#').length;
+  const nodeCount = t => t.split('\n').filter(l => l.trim() && l.trim()[0] !== '#').length;
   entries.forEach(e => e.nodes = nodeCount(e.text));
   let currentKey = null;
-
   function renderList() {
-    const q = $('#q').value.trim().toLowerCase();
-    const box = $('#items'); box.innerHTML = '';
+    const q = $('#q').value.trim().toLowerCase(), box = $('#items'); box.innerHTML = '';
     const sections = [];
     if (uploaded.length) sections.push(['불러온 파일', uploaded]);
     for (const [g, a, label] of GROUPS) sections.push([label, entries.filter(e => e.group === g && e.age === a)]);
@@ -198,23 +281,20 @@ dd.hl { color: var(--warn); }
       const h = document.createElement('div'); h.className = 'gh'; h.innerHTML = `<span>${label}</span><span>${vis.length}</span>`; box.appendChild(h);
       for (const e of vis) {
         const b = document.createElement('button'); b.className = 'item' + (e.key === currentKey ? ' on' : ''); b.type = 'button';
-        b.innerHTML = `<span class="nm" title="${e.name}">${e.name}</span><span class="ct">${e.nodes}</span>`;
+        b.innerHTML = `<span class="nm" title="${esc(e.name)}">${esc(e.name)}</span><span class="ct">${e.nodes}</span>`;
         b.onclick = () => load(e);
         box.appendChild(b);
       }
     }
   }
   $('#q').addEventListener('input', renderList);
-
   function addFiles(files) {
     [...files].forEach(file => {
       const rd = new FileReader();
       rd.onload = () => {
-        const name = file.name.replace(/(\.swc)+$/i, '');
         const m = file.name.toUpperCase().match(/^(WT|AD)(06|12)/);
-        const e = { key: 'up:' + file.name + ':' + Date.now(), file: file.name, name, group: m ? m[1] : '', age: m ? 'M' + m[2] : '', mouse: '', val: null, text: rd.result, upload: true };
-        e.nodes = nodeCount(e.text);
-        uploaded.unshift(e); load(e);
+        const e = { key: 'up:' + file.name + ':' + Date.now(), file: file.name, name: file.name.replace(/(\.swc)+$/i, ''), group: m ? m[1] : '', age: m ? 'M' + m[2] : '', mouse: '', val: null, text: rd.result, upload: true };
+        e.nodes = nodeCount(e.text); uploaded.unshift(e); load(e);
       };
       rd.readAsText(file);
     });
@@ -225,7 +305,9 @@ dd.hl { color: var(--warn); }
   ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, ev => { ev.preventDefault(); drop.classList.remove('drag'); }));
   drop.addEventListener('drop', ev => addFiles(ev.dataTransfer.files));
 
-  // ---------- 3D ----------
+  // =====================================================================
+  // 3D 장면
+  // =====================================================================
   const canvas = $('#gl'), view = $('#view');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -234,88 +316,179 @@ dd.hl { color: var(--warn); }
   const controls = new THREE.OrbitControls(camera, canvas);
   controls.enableDamping = true; controls.dampingFactor = 0.12;
   scene.add(new THREE.HemisphereLight(0xdfefff, 0x1a2430, 0.9));
-  const key = new THREE.DirectionalLight(0xffffff, 0.75); key.position.set(1, 1.5, 2); camera.add(key); scene.add(camera);
-
-  const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 10, 1, false);
-  const sphGeo = new THREE.SphereGeometry(1, 12, 8);
+  const keyL = new THREE.DirectionalLight(0xffffff, 0.75); keyL.position.set(1, 1.5, 2); camera.add(keyL); scene.add(camera);
+  const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 10, 1, false), sphGeo = new THREE.SphereGeometry(1, 12, 8);
   const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
   const hiMat = new THREE.MeshBasicMaterial({ color: css('--accent') });
-  let group = null, edgeMesh = null, nodeMesh = null, hiGroup = null, marker = null;
-  let N = null, pos = null, edges = [], radiusSpan = 1, sceneRadius = 100;
-  let mode = store.get('mode') || 'comp';
-  let thick = parseFloat(store.get('thick')) || 3;
-
-  function resize() {
-    const w = view.clientWidth, h = view.clientHeight;
-    renderer.setSize(w, h, false); camera.aspect = w / Math.max(h, 1); camera.updateProjectionMatrix();
-  }
+  const stimMat = new THREE.MeshBasicMaterial({ color: css('--soma') });
+  const proxMat = new THREE.MeshBasicMaterial({ color: css('--basal'), wireframe: true });
+  const world = new THREE.Group(); scene.add(world);
+  let edgeMesh = null, nodeMesh = null, ghost = null;
+  const hiGroup = new THREE.Group(); world.add(hiGroup);
+  const marker = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), hiMat); marker.visible = false; world.add(marker);
+  const stimMarker = new THREE.Mesh(new THREE.OctahedronGeometry(1), stimMat); stimMarker.visible = false; world.add(stimMarker);
+  const proxMarker = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), proxMat); proxMarker.visible = false; world.add(proxMarker);
+  function resize() { const w = view.clientWidth, h = view.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / Math.max(h, 1); camera.updateProjectionMatrix(); }
   new ResizeObserver(resize).observe(view);
 
-  const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpV = new THREE.Vector3(), tmpS = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
-  function edgeMatrix(c, p, rad, out) {
-    const a = pos[c], b = pos[p];
-    tmpV.subVectors(a, b); const len = tmpV.length();
-    tmpQ.setFromUnitVectors(UP, tmpV.normalize());
-    tmpS.set(rad, len, rad);
-    out.compose(tmpV.addVectors(a, b).multiplyScalar(0.5), tmpQ, tmpS);
-    return out;
-  }
-  function buildMatrices() {
-    edges.forEach((c, k) => edgeMesh.setMatrixAt(k, edgeMatrix(c, N.parent[c], N.r[c] * thick, tmpM)));
-    for (let i = 0; i < N.N; i++) { tmpS.setScalar(N.r[i] * thick * 1.02); edgeMesh && nodeMesh.setMatrixAt(i, tmpM.compose(pos[i], tmpQ.identity(), tmpS)); }
-    edgeMesh.instanceMatrix.needsUpdate = true; nodeMesh.instanceMatrix.needsUpdate = true;
-    if (selected !== null) highlight(selected);
+  // =====================================================================
+  // 상태
+  // =====================================================================
+  let meta = null;            // 목록 항목
+  let recs0 = null, n0 = null, idx0 = null;   // 원본 레코드와 계산 결과 (변경하지 않음)
+  let recs = null, rOv = new Map(), N = null, idx = null; // 편집 중 레코드, 사용자 반지름, 현재 계산 결과
+  let center = [0, 0, 0], pos = [], edges = [], sceneRadius = 100;
+  let selId = null, uniformType = false, editVersion = 0;
+  let history = [], committed = null;   // 되돌리기
+  let base = null;                       // 슬라이더 기준 상태(가지 선택 시점)
+  let tab = 'info';
+  let mode = store.get('mode2') || 'volt', thick = parseFloat(store.get('thick')) || 3;
+  let sim = null, simOrig = null, stimId = null, tIndex = 0, playing = false, simStale = false;
+
+  const snap = () => ({ recs: recs.map(a => a.slice()), rOv: new Map(rOv) });
+  const indexOf = n => { const m = new Map(); for (let i = 0; i < n.N; i++) m.set(n.id[i], i); return m; };
+  const typeLabel = t => (uniformType && t === 1) ? '1 (부위 구분 없음)' : (TYPE_NAME[t] || 'type ' + t);
+
+  // =====================================================================
+  // 불러오기
+  // =====================================================================
+  function load(e) {
+    let parsed, n;
+    try { parsed = E.readSwcSafe(e.text); n = E.processRecords(parsed.recs); }
+    catch (err) { showError(e, err.message); return; }
+    meta = e; currentKey = e.key; store.set('neuron', e.key);
+    recs0 = parsed.recs.map(a => a.slice()); n0 = n; idx0 = indexOf(n);
+    recs = recs0.map(a => a.slice()); rOv = new Map(); history = []; committed = snap(); editVersion = 0;
+    { let ones = 0; for (let i = 0; i < n.N; i++) if (n.type[i] === 1) ones++; uniformType = ones >= n.N * 0.95; }
+    let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+    for (let i = 0; i < n.N; i++) { const v = [n.x[i], n.y[i], n.z[i]]; for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], v[k]); mx[k] = Math.max(mx[k], v[k]); } }
+    center = [0, 1, 2].map(k => (mn[k] + mx[k]) / 2);
+    buildGhost();
+    stimId = null; sim = null; simOrig = null; tIndex = 0;
+    applyRecs(true);
+    frame();
+    // 처음 선택: R 3단계의 근위 지점(가장 큰 연결 구조의 뿌리)
+    const S = H.prepare(N); selId = N.id[S.chosenRoot];
+    captureBase(); refreshSelection();
+    renderList();
+    runSim();
   }
 
-  // ---------- 색상 ----------
+  // 레코드 → 계산 → 화면. 구조 오류가 나면 직전 상태로 되돌린다
+  function applyRecs(first) {
+    let n;
+    try { n = E.processRecords(recs, null, rOv); }
+    catch (err) { setStatus('구조 검사 실패: ' + err.message + ' — 직전 상태로 되돌립니다.', 'bad'); const s = committed; recs = s.recs.map(a => a.slice()); rOv = new Map(s.rOv); n = E.processRecords(recs, null, rOv); }
+    N = n; idx = indexOf(n);
+    if (!first) { editVersion++; if (sim) { simStale = true; renderSimStatus(); } }
+    pos = Array.from({ length: n.N }, (_, i) => new THREE.Vector3(n.x[i] - center[0], n.y[i] - center[1], n.z[i] - center[2]));
+    edges = []; for (let i = 0; i < n.N; i++) if (n.parent[i] >= 0 && n.geomLen[i] > 0) edges.push(i);
+    if (!edgeMesh || edgeMesh.instanceMatrix.count < edges.length) { if (edgeMesh) { world.remove(edgeMesh); edgeMesh.dispose(); } edgeMesh = new THREE.InstancedMesh(cylGeo, mat, Math.ceil(Math.max(edges.length, 8) * 1.5)); world.add(edgeMesh); }
+    if (!nodeMesh || nodeMesh.instanceMatrix.count < n.N) { if (nodeMesh) { world.remove(nodeMesh); nodeMesh.dispose(); } nodeMesh = new THREE.InstancedMesh(sphGeo, mat, Math.ceil(n.N * 1.5)); world.add(nodeMesh); }
+    edgeMesh.count = edges.length; nodeMesh.count = n.N;
+    const lr = Array.from(n.r).map(Math.log); rMinLog = Math.min(...lr); rMaxLog = Math.max(...lr);
+    buildMatrices(); recolor();
+    if (ghost) ghost.visible = $('#ghost').checked && editVersion > 0;
+  }
+
+  // =====================================================================
+  // 그리기
+  // =====================================================================
+  const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpV = new THREE.Vector3(), tmpS = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+  function edgeMatrix(a, b, rad, out) {
+    tmpV.subVectors(a, b); const len = tmpV.length();
+    tmpQ.setFromUnitVectors(UP, tmpV.normalize()); tmpS.set(rad, len, rad);
+    return out.compose(tmpV.addVectors(a, b).multiplyScalar(0.5), tmpQ, tmpS);
+  }
+  function buildMatrices() {
+    edges.forEach((c, k) => edgeMesh.setMatrixAt(k, edgeMatrix(pos[c], pos[N.parent[c]], N.r[c] * thick, tmpM)));
+    for (let i = 0; i < N.N; i++) { tmpS.setScalar(N.r[i] * thick * 1.02); nodeMesh.setMatrixAt(i, tmpM.compose(pos[i], tmpQ.identity(), tmpS)); }
+    edgeMesh.instanceMatrix.needsUpdate = true; nodeMesh.instanceMatrix.needsUpdate = true;
+    if (selId !== null) highlight();
+  }
+  function buildGhost() {
+    if (ghost) { world.remove(ghost); ghost.geometry.dispose(); }
+    const p = [];
+    for (let i = 0; i < n0.N; i++) { const q = n0.parent[i]; if (q < 0) continue; p.push(n0.x[i] - center[0], n0.y[i] - center[1], n0.z[i] - center[2], n0.x[q] - center[0], n0.y[q] - center[1], n0.z[q] - center[2]); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+    ghost = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x8396a8, transparent: true, opacity: 0.35 }));
+    ghost.visible = $('#ghost').checked && editVersion > 0; world.add(ghost);
+  }
+  $('#ghost').addEventListener('change', () => { if (ghost) ghost.visible = $('#ghost').checked && editVersion > 0; });
+
+  // ---------- 색 ----------
   const col = new THREE.Color();
+  let rMinLog = 0, rMaxLog = 1;
   const compColor = k => col.setHSL(((k * 0.618034) % 1), 0.62, 0.62).getHex();
-  function rampColor(t) { // 진한 남색 → 청록 → 노랑
-    const stops = [[0.16, 0.28, 0.55], [0.22, 0.78, 0.86], [1.0, 0.86, 0.35]];
-    const s = t < 0.5 ? 0 : 1, u = t < 0.5 ? t / 0.5 : (t - 0.5) / 0.5;
-    const a = stops[s], b = stops[s + 1];
+  function ramp(t, stops) {
+    t = Math.min(1, Math.max(0, t)); const k = Math.min(stops.length - 2, Math.floor(t * (stops.length - 1))), u = t * (stops.length - 1) - k, a = stops[k], b = stops[k + 1];
     return col.setRGB(a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u).getHex();
   }
-  let rMinLog = 0, rMaxLog = 1;
+  const RAD_STOPS = [[0.16, 0.28, 0.55], [0.22, 0.78, 0.86], [1.0, 0.86, 0.35]];
+  const VOLT_STOPS = [[0.13, 0.18, 0.26], [0.20, 0.45, 0.85], [0.35, 0.85, 0.80], [1.0, 0.85, 0.35], [1.0, 0.36, 0.55]];
+  function simUsable() { return sim && !simStale && sim.N === N.N; }
+  function voltScale() { let m = 0; for (let i = 0; i < sim.N; i++) m = Math.max(m, sim.peak[i]); return Math.max(m, 1e-6); }
+  let vMax = 1;
   function nodeColor(i) {
-    if (mode === 'type') return new THREE.Color(TYPE_COLOR[N.type[i]] || OTHER).getHex();
+    if (mode === 'volt') {
+      if (!simUsable()) return 0x33414f;
+      const d = sim.V[tIndex * sim.N + i] - H.HH.VREST_MV;
+      return ramp(Math.sqrt(Math.max(0, d) / vMax), VOLT_STOPS);
+    }
     if (mode === 'comp') return compColor(N.comp[i]);
-    if (mode === 'radius') return rampColor((Math.log(N.r[i]) - rMinLog) / Math.max(rMaxLog - rMinLog, 1e-9));
+    if (mode === 'radius') return ramp((Math.log(N.r[i]) - rMinLog) / Math.max(rMaxLog - rMinLog, 1e-9), RAD_STOPS);
+    if (mode === 'edit') {
+      const id = N.id[i], j = idx0.get(id);
+      if (j === undefined) return 0x5fd38d;                     // 새로 추가
+      if (N.rEdited[i]) return new THREE.Color(css('--accent')).getHex();
+      if (N.x[i] !== n0.x[j] || N.y[i] !== n0.y[j] || N.z[i] !== n0.z[j]) return 0x6aa8ff; // 이동
+      return 0x33414f;
+    }
     if (N.invalidOrig[i]) return new THREE.Color(css('--bad')).getHex();
     if (N.wasZero[i]) return new THREE.Color(css('--warn')).getHex();
     if (N.lenZero[i]) return 0xfff07a;
     return 0x33414f;
   }
   function recolor() {
+    if (mode === 'volt' && simUsable()) vMax = voltScale();
     const c = new THREE.Color();
     for (let i = 0; i < N.N; i++) nodeMesh.setColorAt(i, c.setHex(nodeColor(i)));
     edges.forEach((e, k) => edgeMesh.setColorAt(k, c.setHex(nodeColor(e))));
-    nodeMesh.instanceColor.needsUpdate = true; edgeMesh.instanceColor.needsUpdate = true;
+    nodeMesh.instanceColor.needsUpdate = true; if (edgeMesh.instanceColor) edgeMesh.instanceColor.needsUpdate = true;
     document.querySelectorAll('#mode button').forEach(b => b.classList.toggle('on', b.dataset.m === mode));
     renderLegend();
   }
   function renderLegend() {
-    const L = $('#legend'); const cnt = {};
-    let html = '';
-    if (mode === 'type') {
-      for (let i = 0; i < N.N; i++) cnt[N.type[i]] = (cnt[N.type[i]] || 0) + 1;
-      html = Object.keys(cnt).sort().map(t => `<div class="row"><span class="sw" style="background:${TYPE_COLOR[t] || OTHER}"></span>${typeLabel(+t)}<span class="n">${cnt[t]}</span></div>`).join('');
-      if (uniformType) html += `<div class="row note">이 파일은 모든 점이 type 1로 적혀 있어 부위 구분이 없습니다</div>`;
+    const L = $('#legend'); let html = '';
+    const cnt = a => a.reduce((x, y) => x + y, 0);
+    if (mode === 'volt') {
+      if (!simUsable()) html = `<div class="row">막전위를 보려면 시뮬레이션을 실행하세요</div>`;
+      else {
+        const g = [0, .25, .5, .75, 1].map(t => '#' + new THREE.Color(ramp(t, VOLT_STOPS)).getHexString()).join(',');
+        html = `<div class="row">휴지 전위(−65 mV) 대비 탈분극 · t = ${f(sim.T[tIndex], 2)} ms</div><div class="row"><span class="ramp" style="background:linear-gradient(90deg,${g})"></span></div><div class="row note" style="justify-content:space-between"><span>0 mV</span><span>+${f(vMax, vMax < 1 ? 4 : 1)} mV</span></div>`;
+      }
     } else if (mode === 'comp') {
-      html = `<div class="row">서로 연결되지 않은 구조 ${N.roots.length}개</div><div class="row note">색이 다르면 전류가 서로 흐르지 않습니다</div>`;
+      html = `<div class="row">서로 연결되지 않은 구조 ${N.roots.length}개</div><div class="row note">색이 다르면 서로 전류가 흐르지 않습니다</div>`;
     } else if (mode === 'radius') {
-      const g = [0, .25, .5, .75, 1].map(t => '#' + new THREE.Color(rampColor(t)).getHexString()).join(',');
+      const g = [0, .5, 1].map(t => '#' + new THREE.Color(ramp(t, RAD_STOPS)).getHexString()).join(',');
       html = `<div class="row">계산용 반지름 (로그 눈금)</div><div class="row"><span class="ramp" style="background:linear-gradient(90deg,${g})"></span></div><div class="row note" style="justify-content:space-between"><span>${f(Math.exp(rMinLog), 2)} µm</span><span>${f(Math.exp(rMaxLog), 2)} µm</span></div>`;
+    } else if (mode === 'edit') {
+      let add = 0, mv = 0, re = cnt(Array.from(N.rEdited));
+      for (let i = 0; i < N.N; i++) { const j = idx0.get(N.id[i]); if (j === undefined) add++; else if (N.x[i] !== n0.x[j] || N.y[i] !== n0.y[j] || N.z[i] !== n0.z[j]) mv++; }
+      const del = [...idx0.keys()].filter(id => !idx.has(id)).length;
+      html = `<div class="row"><span class="sw" style="background:#6aa8ff"></span>위치 변경<span class="n">${mv}</span></div>
+        <div class="row"><span class="sw" style="background:var(--accent)"></span>반지름 변경<span class="n">${re}</span></div>
+        <div class="row"><span class="sw" style="background:#5fd38d"></span>새로 추가<span class="n">${add}</span></div>
+        <div class="row"><span class="sw" style="background:#33414f"></span>삭제된 노드<span class="n">${del}</span></div>`;
     } else {
-      const z = N.wasZero.reduce((a, b) => a + b, 0), iv = N.invalidOrig.reduce((a, b) => a + b, 0), lz = N.lenZero.reduce((a, b) => a + b, 0);
+      const z = cnt(Array.from(N.wasZero)), iv = cnt(Array.from(N.invalidOrig)), lz = cnt(Array.from(N.lenZero));
       html = `<div class="row"><span class="sw" style="background:var(--warn)"></span>반지름 0 → 0.1 µm<span class="n">${z}</span></div>
         <div class="row"><span class="sw" style="background:var(--bad)"></span>비정상 반지름 → 이웃 중앙값<span class="n">${iv}</span></div>
-        <div class="row"><span class="sw" style="background:#fff07a"></span>길이 0 연결 → 0.35 µm<span class="n">${lz}</span></div>
-        <div class="row"><span class="sw" style="background:#33414f"></span>보정 없음<span class="n">${N.N - z - iv}</span></div>`;
+        <div class="row"><span class="sw" style="background:#fff07a"></span>길이 0 연결 → 0.35 µm<span class="n">${lz}</span></div>`;
     }
     L.innerHTML = html;
   }
-  $('#mode').addEventListener('click', ev => { const m = ev.target.dataset && ev.target.dataset.m; if (!m) return; mode = m; store.set('mode', m); recolor(); });
+  $('#mode').addEventListener('click', ev => { const m = ev.target.dataset && ev.target.dataset.m; if (!m) return; mode = m; store.set('mode2', m); recolor(); });
   $('#thick').value = thick; $('#thickv').textContent = '×' + thick;
   $('#thick').addEventListener('input', ev => { thick = parseFloat(ev.target.value); $('#thickv').textContent = '×' + thick; store.set('thick', thick); if (N) buildMatrices(); });
 
@@ -325,104 +498,81 @@ dd.hl { color: var(--warn); }
     const vf = THREE.MathUtils.degToRad(camera.fov / 2), hf = Math.atan(Math.tan(vf) * camera.aspect);
     const d = sceneRadius / Math.sin(Math.min(vf, hf)) * 1.05;
     camera.near = d / 1000; camera.far = d * 20; camera.updateProjectionMatrix();
-    camera.position.set(0, 0, d); camera.up.set(0, -1, 0); // SWC 영상 좌표: y가 아래 방향
-    controls.target.set(0, 0, 0); controls.update();
+    camera.position.set(0, 0, d); camera.up.set(0, -1, 0); controls.target.set(0, 0, 0); controls.update();
   }
   $('#reset').onclick = () => { if (N) frame(); };
 
-  // ---------- 뉴런 불러오기 ----------
-  let meta = null, selected = null, pathLen = null, uniformType = false;
-  const typeLabel = t => (uniformType && t === 1) ? '1 (부위 구분 없음)' : (TYPE_NAME[t] || 'type ' + t);
-  function load(e) {
-    let n;
-    try { n = E.processSwc(e.text); }
-    catch (err) { showError(e, err.message); return; }
-    meta = e; N = n; currentKey = e.key;
-    { let ones = 0; for (let i = 0; i < n.N; i++) if (n.type[i] === 1) ones++; uniformType = ones >= n.N * 0.95; } store.set('neuron', e.key);
-    if (group) { scene.remove(group); edgeMesh.dispose(); nodeMesh.dispose(); }
-    group = new THREE.Group(); scene.add(group);
-    // 원점 중심 정렬 (표시용 이동일 뿐 원본 좌표는 그대로)
-    let cx = 0, cy = 0, cz = 0, mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
-    for (let i = 0; i < n.N; i++) { const v = [n.x[i], n.y[i], n.z[i]]; for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], v[k]); mx[k] = Math.max(mx[k], v[k]); } }
-    [cx, cy, cz] = [0, 1, 2].map(k => (mn[k] + mx[k]) / 2);
-    pos = Array.from({ length: n.N }, (_, i) => new THREE.Vector3(n.x[i] - cx, n.y[i] - cy, n.z[i] - cz));
-    edges = []; for (let i = 0; i < n.N; i++) if (n.parent[i] >= 0 && n.geomLen[i] > 0) edges.push(i);
-    edgeMesh = new THREE.InstancedMesh(cylGeo, mat, Math.max(edges.length, 1)); edgeMesh.count = edges.length;
-    nodeMesh = new THREE.InstancedMesh(sphGeo, mat, n.N);
-    group.add(edgeMesh, nodeMesh);
-    const lr = Array.from(n.r).map(Math.log); rMinLog = Math.min(...lr); rMaxLog = Math.max(...lr);
-    pathLen = new Float64Array(n.N);
-    (function () { const st = [...n.roots]; while (st.length) { const u = st.pop(); for (const c of n.children[u]) { pathLen[c] = pathLen[u] + n.geomLen[c]; st.push(c); } } })();
-    hiGroup = new THREE.Group(); group.add(hiGroup);
-    marker = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), hiMat); marker.visible = false; group.add(marker);
-    selected = null;
-    buildMatrices(); recolor(); frame();
-    // 처음 화면: 가장 큰 연결 구조의 뿌리를 선택해 둔다 (R 3단계의 근위 지점 선택과 같은 기준)
-    const sizes = n.roots.map((_, k) => 0); for (let i = 0; i < n.N; i++) sizes[n.comp[i]]++;
-    const somaRoots = n.roots.filter(r => n.type[r] === 1);
-    const pool = somaRoots.length ? somaRoots : n.roots;
-    const start = pool.reduce((a, b) => sizes[n.comp[b]] > sizes[n.comp[a]] ? b : a);
-    select(start);
-    renderList();
-  }
-
-  // ---------- 가지(분기점~분기점/말단 구간) ----------
+  // =====================================================================
+  // 선택 · 가지
+  // =====================================================================
   function branchOf(i) {
     if (N.parent[i] < 0) return null;
-    const list = [i];
-    let p = N.parent[i];
-    while (p >= 0 && N.childCount[p] === 1 && N.parent[p] >= 0) { list.push(p); p = N.parent[p]; }
-    const startNode = p;
-    let c = i;
-    while (N.childCount[c] === 1) { c = N.children[c][0]; list.push(c); }
-    return { nodes: list, start: startNode, end: c };
+    const list = [i]; let p = N.parent[i];
+    while (p >= 0 && N.childCount[p] === 1 && N.parent[p] >= 0) { list.unshift(p); p = N.parent[p]; }
+    let c = i; while (N.childCount[c] === 1) { c = N.children[c][0]; list.push(c); }
+    return { nodes: list, start: p, end: c };
   }
-  function highlight(i) {
+  function descendants(i, excludeSelf) { const out = [], st = [i]; while (st.length) { const u = st.pop(); if (u !== i || !excludeSelf) out.push(u); for (const v of N.children[u]) st.push(v); } return out; }
+  function highlight() {
     hiGroup.clear();
-    const br = branchOf(i);
-    const m = new THREE.Matrix4();
+    const i = idx.get(selId); if (i === undefined) { marker.visible = false; return null; }
+    const br = branchOf(i), m = new THREE.Matrix4();
     if (br) for (const k of br.nodes) {
       if (!(N.geomLen[k] > 0)) continue;
       const mesh = new THREE.Mesh(cylGeo, hiMat);
-      edgeMatrix(k, N.parent[k], Math.max(N.r[k] * thick * 1.35, sceneRadius * 0.0025), m);
+      edgeMatrix(pos[k], pos[N.parent[k]], Math.max(N.r[k] * thick * 1.35, sceneRadius * 0.0025), m);
       m.decompose(mesh.position, mesh.quaternion, mesh.scale); hiGroup.add(mesh);
     }
-    marker.visible = true; marker.position.copy(pos[i]);
-    marker.scale.setScalar(Math.max(N.r[i] * thick * 1.8, sceneRadius * 0.012));
+    marker.visible = true; marker.position.copy(pos[i]); marker.scale.setScalar(Math.max(N.r[i] * thick * 1.8, sceneRadius * 0.012));
+    updateStimMarkers();
     return br;
   }
+  function updateStimMarkers() {
+    const S = simUsable() ? sim : null;
+    if (S) {
+      stimMarker.visible = true; stimMarker.position.copy(pos[S.stim]); stimMarker.scale.setScalar(sceneRadius * 0.018);
+      proxMarker.visible = true; proxMarker.position.copy(pos[S.prox]); proxMarker.scale.setScalar(sceneRadius * 0.02);
+    } else { stimMarker.visible = false; proxMarker.visible = false; }
+  }
+  function refreshSelection() {
+    if (!idx.has(selId)) selId = N.id[0];
+    highlight(); renderPanel(); drawCharts(); renderMetrics();
+  }
+  function select(i) { selId = N.id[i]; captureBase(); refreshSelection(); }
 
-  // ---------- 정보 패널 ----------
-  function sum(a, idx) { let s = 0; for (const i of idx) s += a[i]; return s; }
+  // =====================================================================
+  // 정보 패널
+  // =====================================================================
+  function sum(a, list) { let s = 0; for (const i of list) s += a[i]; return s; }
+  function totals(n) {
+    let L = 0, A = 0, Cp = 0; for (let i = 0; i < n.N; i++) { if (n.parent[i] >= 0) L += n.geomLen[i]; A += n.area[i]; Cp += n.cap[i]; }
+    return { L, A: A * 1e8, C: Cp * 1e6, bif: Array.from(n.childCount).filter(c => c >= 2).length, term: Array.from(n.childCount).filter(c => c === 0).length };
+  }
   function neuronSummary() {
-    const all = [...Array(N.N).keys()];
-    const kids = all.filter(i => N.parent[i] >= 0);
-    const z = sum(N.wasZero, all), iv = sum(N.invalidOrig, all), lz = sum(N.lenZero, all);
-    const totalLen = kids.reduce((s, i) => s + N.geomLen[i], 0);
-    const bif = all.filter(i => N.childCount[i] >= 2).length, term = all.filter(i => N.childCount[i] === 0).length;
-    const area = sum(N.area, all) * 1e8, cap = sum(N.cap, all) * 1e6;
-    const g = meta.group, chips = [];
-    if (g) chips.push(`<span class="chip ${g.toLowerCase()}">${g === 'WT' ? '정상 WT' : '알츠하이머 AD'}</span>`);
+    const t = totals(N), t0 = totals(n0), z = sum(N.wasZero, [...Array(N.N).keys()]), iv = sum(N.invalidOrig, [...Array(N.N).keys()]), lz = sum(N.lenZero, [...Array(N.N).keys()]);
+    const chips = [];
+    if (meta.group) chips.push(`<span class="chip ${meta.group.toLowerCase()}">${meta.group === 'WT' ? '정상 WT' : '알츠하이머 AD'}</span>`);
     if (meta.age) chips.push(`<span class="chip">${meta.age === 'M06' ? '6개월령' : '12개월령'}</span>`);
-    if (meta.mouse) chips.push(`<span class="chip">개체 ${meta.mouse}</span>`);
+    if (meta.mouse) chips.push(`<span class="chip">개체 ${esc(meta.mouse)}</span>`);
     if (meta.upload) chips.push(`<span class="chip">불러온 파일</span>`);
+    if (editVersion) chips.push(`<span class="chip ed">수정됨</span>`);
     const v = meta.val;
     const badge = v && v.mism === 0
-      ? `<div class="badge"><span>✓</span><span><b>팀 R 결과와 일치</b> · 1·2단계 parameters.csv의 23개 열을 노드 ${N.N}개 전부 비교<span class="d">최대 상대오차 ${v.maxRel.toExponential(1)} (CSV 저장 시 반올림 수준)</span></span></div>`
-      : v ? `<div class="badge none">R 결과와 ${v.mism}곳 차이</div>`
-      : `<div class="badge none">비교할 R 결과가 없는 파일입니다. 같은 보정 규칙으로 계산했습니다.</div>`;
+      ? `<div class="badge"><span>✓</span><span><b>팀 R 결과와 일치</b> · 1·2단계 parameters.csv 23개 열, 노드 ${n0.N}개 전부 비교<span class="d">최대 상대오차 ${v.maxRel.toExponential(1)} · 3단계 HH도 R로 직접 돌려 일치 확인</span></span></div>`
+      : `<div class="badge none">비교할 R 결과가 없는 파일입니다. 같은 보정 규칙으로 계산합니다.</div>`;
+    const ch = (a, b, d, u) => editVersion && Math.abs(a - b) > 1e-9 ? `<dd class="ed">${U(a, u, d)}</dd>` : `<dd>${U(a, u, d)}</dd>`;
     return `<section class="sec">
       <h2>이 뉴런</h2>
-      <div class="title">${meta.name}</div>
+      <div class="title">${esc(meta.name)}</div>
       <div class="chips">${chips.join('')}</div>
       ${badge}
       <dl>
-        <dt>노드 수</dt><dd>${N.N}</dd>
+        <dt>노드 수</dt><dd>${N.N}${editVersion && N.N !== n0.N ? ` <span class="u">(원본 ${n0.N})</span>` : ''}</dd>
         <dt>연결 구조(뿌리) 수</dt><dd>${N.roots.length}</dd>
-        <dt>분기점 · 말단</dt><dd>${bif} · ${term}</dd>
-        <dt>총 추적 길이</dt><dd>${U(totalLen, 'µm', 1)}</dd>
-        <dt>총 막면적</dt><dd>${U(area, 'µm²', 1)}</dd>
-        <dt>총 막용량</dt><dd>${U(cap, 'pF', 2)}</dd>
+        <dt>분기점 · 말단</dt><dd>${t.bif} · ${t.term}</dd>
+        <dt>총 추적 길이</dt>${ch(t.L, t0.L, 1, 'µm')}
+        <dt>총 막면적</dt>${ch(t.A, t0.A, 1, 'µm²')}
+        <dt>총 막용량</dt>${ch(t.C, t0.C, 2, 'pF')}
       </dl>
       <div class="sub-h">계산용 보정 (원본 SWC는 그대로 보관)</div>
       <dl>
@@ -430,30 +580,31 @@ dd.hl { color: var(--warn); }
         <dt>비정상 반지름 → 이웃 중앙값</dt><dd class="${iv ? 'hl' : ''}">${iv}</dd>
         <dt>길이 0 연결 → 0.35 µm</dt><dd class="${lz ? 'hl' : ''}">${lz}</dd>
       </dl>
-      <p class="note" style="margin:0">보정 기준은 기존 연구 결과를 재현하기 위한 탐색적 가정이며 생물학적 측정값이 아닙니다.</p>
+      <p class="note">보정 기준은 기존 연구 결과를 재현하기 위한 탐색적 가정이며 생물학적 측정값이 아닙니다.</p>
     </section>`;
   }
   function nodeSection(i) {
-    const isRoot = N.parent[i] < 0;
-    const fixes = [];
-    if (N.invalidOrig[i]) fixes.push(`<div class="fix bad">원본 반지름이 비정상값(NaN/음수)이라 주변 노드의 중앙값 ${f(N.r[i], 4)} µm로 계산합니다.</div>`);
-    if (N.wasZero[i]) fixes.push(`<div class="fix">원본 반지름 0을 계산용 0.1 µm로 바꿔 씁니다.</div>`);
+    const isRoot = N.parent[i] < 0, fixes = [];
+    if (N.rEdited[i]) fixes.push(`<div class="fix info">사용자가 바꾼 반지름 ${f(N.r[i], 4)} µm로 계산합니다.</div>`);
+    if (N.invalidOrig[i] && !N.rEdited[i]) fixes.push(`<div class="fix bad">원본 반지름이 비정상값(NaN/음수)이라 주변 노드의 중앙값 ${f(N.r[i], 4)} µm로 계산합니다.</div>`);
+    if (N.wasZero[i] && !N.rEdited[i]) fixes.push(`<div class="fix">원본 반지름 0을 계산용 0.1 µm로 바꿔 씁니다.</div>`);
     if (N.lenZero[i]) fixes.push(`<div class="fix">부모와 좌표가 같아 길이가 0입니다. 좌표는 그대로 두고 계산용 길이만 0.35 µm로 씁니다.</div>`);
-    if (isRoot) fixes.push(`<div class="fix">뿌리 노드입니다. R 코드와 같이 계산용 구획 길이를 1 µm로 가정합니다.</div>`);
+    if (isRoot) fixes.push(`<div class="fix info">뿌리 노드입니다. R 코드와 같이 계산용 구획 길이를 1 µm로 가정합니다.</div>`);
     const kind = isRoot ? '뿌리' : N.childCount[i] === 0 ? '말단' : N.childCount[i] >= 2 ? `분기점 (자식 ${N.childCount[i]})` : '중간';
+    const S = simUsable() ? sim : null;
+    const role = S ? (i === S.stim ? ' · 자극 지점' : i === S.prox ? ' · 근위(측정) 지점' : '') : '';
     return `<section class="sec">
       <h2>선택한 노드 <span class="id">#${N.id[i]}</span></h2>
       <dl>
         <dt>SWC type</dt><dd>${typeLabel(N.type[i])}</dd>
-        <dt>위치 종류</dt><dd>${kind}</dd>
+        <dt>위치 종류</dt><dd>${kind}${role}</dd>
         <dt>부모 노드</dt><dd>${isRoot ? '없음 (−1)' : '#' + N.pid[i]}</dd>
         <dt>좌표 x, y, z</dt><dd>${f(N.x[i], 2)}, ${f(N.y[i], 2)}, ${f(N.z[i], 2)}</dd>
         <dt>원본 반지름</dt><dd>${Number.isFinite(N.rOrig[i]) ? U(N.rOrig[i], 'µm', 4) : 'NaN'}</dd>
-        <dt>계산용 반지름</dt><dd class="${N.r[i] !== N.rOrig[i] ? 'hl' : ''}">${U(N.r[i], 'µm', 4)}</dd>
+        <dt>계산용 반지름</dt><dd class="${N.rEdited[i] ? 'ed' : N.r[i] !== N.rOrig[i] ? 'hl' : ''}">${U(N.r[i], 'µm', 4)}</dd>
         <dt>계산용 직경</dt><dd>${U(2 * N.r[i], 'µm', 4)}</dd>
         <dt>부모까지 길이</dt><dd>${isRoot ? '—' : U(N.geomLen[i], 'µm', 3)}</dd>
         <dt>계산용 구획 길이</dt><dd class="${N.effLen[i] !== N.geomLen[i] ? 'hl' : ''}">${U(N.effLen[i], 'µm', 3)}</dd>
-        <dt>뿌리까지 경로 길이</dt><dd>${U(pathLen[i], 'µm', 1)}</dd>
       </dl>
       ${fixes.join('')}
       <div class="sub-h">이 구획의 전기적 파라미터 (R 2단계와 같은 식)</div>
@@ -461,81 +612,427 @@ dd.hl { color: var(--warn); }
         <dt>막면적 2πrℓ</dt><dd>${U(N.area[i] * 1e8, 'µm²', 3)}</dd>
         <dt>막용량 C = cm·A</dt><dd>${U(N.cap[i] * 1e6, 'pF', 4)}</dd>
         <dt>축저항 Ra·ℓ/(πr²)</dt><dd>${U(N.Ra[i] / 1e6, 'MΩ', 3)}</dd>
-        <dt>최대 gNa</dt><dd>${U(N.gNa[i] * 1e6, 'nS', 3)}</dd>
-        <dt>최대 gK</dt><dd>${U(N.gK[i] * 1e6, 'nS', 3)}</dd>
-        <dt>누설 gL</dt><dd>${U(N.gL[i] * 1e6, 'nS', 4)}</dd>
+        <dt>최대 gNa · gK</dt><dd>${f(N.gNa[i] * 1e6, 3)} · ${f(N.gK[i] * 1e6, 3)}<span class="u">nS</span></dd>
       </dl>
     </section>`;
   }
   function branchSection(br) {
-    if (!br) return `<section class="sec"><h2>선택한 가지</h2><p class="empty" style="margin:0">뿌리 노드에는 부모 구간이 없습니다. 가지를 보려면 다른 노드를 클릭하세요.</p></section>`;
-    const L = sum(N.geomLen, br.nodes), Ra = sum(N.Ra, br.nodes), A = sum(N.area, br.nodes);
-    const rs = br.nodes.map(k => N.r[k]);
-    const endKind = N.childCount[br.end] === 0 ? '말단' : '분기점';
-    const startKind = N.parent[br.start] < 0 ? '뿌리' : '분기점';
+    if (!br) return `<section class="sec"><h2>선택한 가지</h2><p class="empty">뿌리 노드에는 부모 구간이 없습니다. 가지를 보려면 다른 노드를 클릭하세요.</p></section>`;
+    const L = sum(N.geomLen, br.nodes), Ra = sum(N.Ra, br.nodes), A = sum(N.area, br.nodes), rs = br.nodes.map(k => N.r[k]);
     return `<section class="sec">
       <h2>선택한 가지 <span class="id">#${N.id[br.start]} → #${N.id[br.end]}</span></h2>
       <dl>
-        <dt>구간</dt><dd>${startKind} → ${endKind}</dd>
+        <dt>구간</dt><dd>${N.parent[br.start] < 0 ? '뿌리' : '분기점'} → ${N.childCount[br.end] === 0 ? '말단' : '분기점'}</dd>
         <dt>노드 수</dt><dd>${br.nodes.length}</dd>
         <dt>가지 길이</dt><dd>${U(L, 'µm', 2)}</dd>
         <dt>평균 반지름</dt><dd>${U(rs.reduce((a, b) => a + b, 0) / rs.length, 'µm', 3)}</dd>
         <dt>가지 막면적</dt><dd>${U(A * 1e8, 'µm²', 2)}</dd>
         <dt>가지 축저항 합</dt><dd>${U(Ra / 1e6, 'MΩ', 2)}</dd>
       </dl>
-      <p class="note" style="margin:0">가늘고 긴 가지일수록 축저항 합이 커져 신호가 약해집니다. 4단계에서 이 값으로 막전위를 계산합니다.</p>
+      <p class="note">가늘고 긴 가지일수록 축저항 합이 커져 신호가 약해집니다.</p>
     </section>`;
   }
-  function select(i) {
-    selected = i;
-    const br = highlight(i);
-    $('#info').innerHTML = neuronSummary() + nodeSection(i) + branchSection(br);
+
+  // ---------- 편집 탭 ----------
+  function editSection(i) {
+    const br = branchOf(i), hasBr = !!br;
+    const dis = hasBr ? '' : 'disabled';
+    return `<section class="sec">
+      <h2>구조 편집 <span class="id">#${N.id[i]}</span></h2>
+      <p class="note">편집 탭이 열려 있는 동안 3D 화면에서 노드를 끌어 옮길 수 있습니다. 회전은 빈 곳을 드래그하세요.</p>
+      <div class="sub-h">선택한 가지 ${hasBr ? `(#${N.id[br.start]} → #${N.id[br.end]}, 하위 가지는 함께 따라 움직임)` : '— 뿌리가 아닌 노드를 선택하세요'}</div>
+      <label class="slider"><span>길이 배율</span><input type="range" id="e-len" min="0.2" max="3" step="0.01" value="1" ${dis}><output id="o-len">×1.00</output></label>
+      <label class="slider"><span>평면 회전 (z축)</span><input type="range" id="e-rot" min="-180" max="180" step="1" value="0" ${dis}><output id="o-rot">0°</output></label>
+      <label class="slider"><span>기울기</span><input type="range" id="e-tilt" min="-90" max="90" step="1" value="0" ${dis}><output id="o-tilt">0°</output></label>
+      <div class="sub-h">반지름 (계산에 반영 · 위의 굵기 표시는 화면용)</div>
+      <div class="rowf">적용 범위 <select id="e-scope">
+        <option value="branch" ${hasBr ? '' : 'disabled'}>이 가지</option>
+        <option value="subtree">이 노드와 하위 전체</option>
+        <option value="node" ${hasBr ? '' : 'selected'}>이 노드만</option>
+        <option value="all">뉴런 전체</option></select></div>
+      <label class="slider"><span>반지름 배율</span><input type="range" id="e-rad" min="0.1" max="3" step="0.01" value="1"><output id="o-rad">×1.00</output></label>
+      <div class="rowf">이 노드 반지름 <input type="number" id="e-r" step="0.01" min="0.01" value="${N.r[i].toFixed(4)}"> µm <button class="btn" id="e-rset">적용</button></div>
+      <div class="sub-h">가지 추가 · 삭제</div>
+      <div class="rowf">새 가지 길이 <input type="number" id="e-addlen" value="30" min="1" max="500"> µm <button class="btn" id="e-add">이 노드에서 새 가지</button></div>
+      <div class="btns"><button class="btn danger" id="e-del">이 노드와 하위 삭제 (${descendants(i).length}개)</button><span id="e-delc"></span></div>
+      <div class="sub-h">기록</div>
+      <div class="btns">
+        <button class="btn" id="e-undo" ${history.length ? '' : 'disabled'}>되돌리기 (${history.length})</button>
+        <button class="btn" id="e-revert" ${editVersion ? '' : 'disabled'}>원본으로 복원</button>
+      </div>
+      <p class="ok-line">${checkLine()}</p>
+      <div class="btns"><button class="btn" id="e-swc">수정한 SWC 저장</button><button class="btn" id="e-csv">계산값 CSV 저장 (R 2단계 형식)</button></div>
+      <p class="note">원본 SWC는 바뀌지 않습니다. 저장 파일에는 보정 기준과 편집 내역이 주석으로 남습니다.</p>
+    </section>`;
   }
-  function showError(e, msg) {
-    $('#info').innerHTML = `<section class="sec"><h2>불러오기 실패</h2><div class="title">${e.name}</div><p class="err" style="margin:0">${msg}</p><p class="note" style="margin:0">SWC 한 줄은 번호, 부위, x, y, z, 반지름, 부모 번호의 7개 값이어야 합니다.</p></section>`;
+  function checkLine() {
+    // processRecords가 ID 중복·부모 누락·순환을 이미 검사했다
+    return `✓ 구조 검사 통과 · 노드 ${N.N}개 · ID 중복 없음 · 부모 연결 정상 · 순환 없음`;
+  }
+  function renderPanel() {
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === tab));
+    view.classList.toggle('editing', tab === 'edit');
+    $('#hint').textContent = tab === 'edit' ? '노드를 끌어 이동 · 빈 곳 드래그 회전 · 휠 확대' : '드래그 회전 · 휠 확대 · 우클릭 이동 · 클릭 선택';
+    const i = idx.get(selId);
+    if (tab === 'edit') captureBase();
+    if (tab === 'info') $('#info').innerHTML = neuronSummary() + nodeSection(i) + branchSection(branchOf(i));
+    else { $('#info').innerHTML = editSection(i) + nodeSection(i); bindEdit(); }
+  }
+  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.t; captureBase(); renderPanel(); });
+
+  // =====================================================================
+  // 편집 동작
+  // =====================================================================
+  function captureBase() {
+    if (!N || !idx.has(selId)) { base = null; return; }
+    const i = idx.get(selId), br = branchOf(i);
+    const rUsed = new Map(); for (let k = 0; k < N.N; k++) rUsed.set(N.id[k], N.r[k]);
+    base = { s: snap(), rUsed, sel: selId,
+      branch: br ? br.nodes.map(k => N.id[k]) : [], start: br ? N.id[br.start] : null, end: br ? N.id[br.end] : null,
+      desc: br ? descendants(br.end, true).map(k => N.id[k]) : [], subtree: descendants(i).map(k => N.id[k]) };
+  }
+  function rotAxis(v, a, th) { // 로드리게스 회전
+    const c = Math.cos(th), s = Math.sin(th), d = a[0] * v[0] + a[1] * v[1] + a[2] * v[2];
+    const cr = [a[1] * v[2] - a[2] * v[1], a[2] * v[0] - a[0] * v[2], a[0] * v[1] - a[1] * v[0]];
+    return [0, 1, 2].map(k => v[k] * c + cr[k] * s + a[k] * d * (1 - c));
+  }
+  function applySliders() {
+    if (!base) return;
+    const L = +$('#e-len').value, th = +$('#e-rot').value * Math.PI / 180, ph = +$('#e-tilt').value * Math.PI / 180, k = +$('#e-rad').value, scope = $('#e-scope').value;
+    $('#o-len').textContent = '×' + L.toFixed(2); $('#o-rot').textContent = Math.round(+$('#e-rot').value) + '°'; $('#o-tilt').textContent = Math.round(+$('#e-tilt').value) + '°'; $('#o-rad').textContent = '×' + k.toFixed(2);
+    recs = base.s.recs.map(a => a.slice()); rOv = new Map(base.s.rOv);
+    const ri = new Map(); recs.forEach((a, j) => ri.set(a[0], j));
+    if (base.branch.length && base.start !== null) {
+      const P = id => { const a = recs[ri.get(id)]; return [a[2], a[3], a[4]]; };
+      const s = P(base.start), e0 = P(base.end);
+      const q = new Map();
+      for (const id of base.branch) { const p = P(id); q.set(id, [0, 1, 2].map(m => s[m] + L * (p[m] - s[m]))); }
+      const e1 = q.get(base.end), dE = [0, 1, 2].map(m => e1[m] - e0[m]);
+      for (const id of base.desc) { const p = P(id); q.set(id, [0, 1, 2].map(m => p[m] + dE[m])); }
+      const dir = [e0[0] - s[0], e0[1] - s[1]], dl = Math.hypot(dir[0], dir[1]);
+      const tiltAx = dl > 1e-9 ? [-dir[1] / dl, dir[0] / dl, 0] : [1, 0, 0];
+      for (const [id, p] of q) {
+        let v = [p[0] - s[0], p[1] - s[1], p[2] - s[2]];
+        if (ph) v = rotAxis(v, tiltAx, ph);
+        if (th) v = rotAxis(v, [0, 0, 1], th);
+        const a = recs[ri.get(id)]; a[2] = s[0] + v[0]; a[3] = s[1] + v[1]; a[4] = s[2] + v[2];
+      }
+    }
+    if (k !== 1) {
+      const ids = scope === 'branch' ? (base.branch.length ? base.branch : [base.sel]) : scope === 'subtree' ? base.subtree : scope === 'node' ? [base.sel] : recs.map(a => a[0]);
+      for (const id of ids) rOv.set(id, base.rUsed.get(id) * k);
+    }
+    applyRecs(); highlight(); updateLiveNumbers();
+  }
+  function updateLiveNumbers() { // 슬라이더를 움직이는 동안 오른쪽 수치만 가볍게 갱신
+    const i = idx.get(selId); const holder = $('#info').querySelectorAll('.sec')[1];
+    if (holder) holder.outerHTML = nodeSection(i);
+    if (ghost) ghost.visible = $('#ghost').checked && editVersion > 0;
+  }
+  function commit() {
+    history.push(committed); if (history.length > 100) history.shift();
+    committed = snap();
+    const u = $('#e-undo'); if (u) { u.disabled = false; u.textContent = `되돌리기 (${history.length})`; }
+    const rv = $('#e-revert'); if (rv) rv.disabled = false;
+    renderLegend();
+  }
+  function restore(s) { recs = s.recs.map(a => a.slice()); rOv = new Map(s.rOv); applyRecs(); if (!idx.has(selId)) selId = N.id[0]; captureBase(); refreshSelection(); }
+  function bindEdit() {
+    ['e-len', 'e-rot', 'e-tilt', 'e-rad'].forEach(id => { const el = $('#' + id); el.addEventListener('input', applySliders); el.addEventListener('change', commit); });
+    $('#e-scope').addEventListener('change', () => { if (+$('#e-rad').value !== 1) { applySliders(); commit(); } });
+    $('#e-rset').onclick = () => {
+      const v = parseFloat($('#e-r').value); if (!(v > 0)) { setStatus('반지름은 0보다 커야 합니다.', 'bad'); return; }
+      rOv.set(selId, v); applyRecs(); commit(); captureBase(); renderPanel();
+    };
+    $('#e-add').onclick = () => addBranch(parseFloat($('#e-addlen').value) || 30);
+    let armed = false;
+    $('#e-del').onclick = () => {
+      const i = idx.get(selId), del = new Set(descendants(i).map(k => N.id[k]));
+      if (del.size >= N.N) { $('#e-delc').innerHTML = '<span class="err">뉴런 전체를 지울 수는 없습니다.</span>'; return; }
+      if (!armed) { armed = true; $('#e-del').textContent = `한 번 더 누르면 ${del.size}개 삭제`; return; }
+      const parentId = N.parent[i] >= 0 ? N.id[N.parent[i]] : null;
+      recs = recs.filter(a => !del.has(a[0])); for (const id of del) rOv.delete(id);
+      applyRecs(); commit(); selId = parentId !== null && idx.has(parentId) ? parentId : N.id[0]; captureBase(); refreshSelection();
+    };
+    $('#e-undo').onclick = () => { if (!history.length) return; committed = history.pop(); restore(committed); };
+    $('#e-revert').onclick = () => { history.push(committed); recs = recs0.map(a => a.slice()); rOv = new Map(); committed = snap(); applyRecs(); editVersion = 0; buildGhost(); captureBase(); refreshSelection(); };
+    $('#e-swc').onclick = saveSwc; $('#e-csv').onclick = () => download(meta.name + (editVersion ? '_edited' : '') + '_parameters.csv', E.toParamsCsv(N));
+  }
+  function addBranch(len) {
+    const i = idx.get(selId), p = N.parent[i];
+    let dir = p >= 0 ? [N.x[i] - N.x[p], N.y[i] - N.y[p], N.z[i] - N.z[p]] : [1, 0, 0];
+    let dl = Math.hypot(...dir); if (dl < 1e-9) { dir = [1, 0, 0]; dl = 1; }
+    dir = rotAxis(dir.map(v => v / dl), [0, 0, 1], 40 * Math.PI / 180);
+    const nNew = Math.max(2, Math.round(len / 5)), step = len / nNew;
+    let maxId = 0; for (const a of recs) maxId = Math.max(maxId, a[0]);
+    const r = Math.max(N.r[i] * 0.7, 0.2);
+    let prev = N.id[i], last = null;
+    for (let k = 1; k <= nNew; k++) {
+      const id = ++maxId;
+      recs.push([id, N.type[i], N.x[i] + dir[0] * step * k, N.y[i] + dir[1] * step * k, N.z[i] + dir[2] * step * k, r, prev]);
+      prev = id; last = id;
+    }
+    applyRecs(); commit(); selId = last; captureBase(); refreshSelection();
+    setStatus(`#${N.id[i]}에서 ${nNew}개 노드(${f(len, 0)} µm) 가지를 추가했습니다. 슬라이더로 길이와 방향을 조절하세요.`);
   }
 
-  // ---------- 클릭 선택 (회전과 분리: 거의 움직이지 않은 클릭만 선택) ----------
-  const tip = $('#tip'); const pv = new THREE.Vector3();
-  function pick(clientX, clientY, maxPx) {
-    if (!N) return -1;
-    const rect = canvas.getBoundingClientRect();
-    const mx = clientX - rect.left, my = clientY - rect.top;
-    let best = -1, bestD = maxPx * maxPx, bestZ = 2;
-    group.updateMatrixWorld();
+  // ---------- 파일 저장 ----------
+  function download(name, text) {
+    try {
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+      a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      setStatus(`${name} 저장을 시작했습니다. 저장이 안 되면 GitHub 사이트(yulsstudy09.github.io/neuron-sim)에서 열어 주세요.`);
+    } catch (e) { setStatus('이 화면에서는 파일 저장이 막혀 있습니다. GitHub 사이트에서 열어 주세요.', 'bad'); }
+  }
+  function saveSwc() {
+    const lines = [`# ${meta.name} — CA1 뉴런 시뮬레이터에서 수정한 SWC`, `# 원본 파일: ${meta.file}`, `# 저장 시각: ${new Date().toISOString()}`,
+      `# 편집: 노드 ${N.N}개 (원본 ${n0.N}개), 반지름을 바꾼 노드 ${Array.from(N.rEdited).filter(Boolean).length}개`,
+      `# 반지름 열: 사용자가 바꾼 노드는 그 값, 나머지는 원본 값(원본이 0이면 0 유지, 계산 시 0.1 µm로 보정)`,
+      `# 보정 기준(계산용): r=0 -> 0.1 um, 비정상 r -> 이웃 양수 반지름 중앙값, 길이 0 연결 -> 0.35 um, root 길이 1 um`, `# id type x y z radius parent`];
     for (let i = 0; i < N.N; i++) {
-      pv.copy(pos[i]).project(camera);
-      if (pv.z < -1 || pv.z > 1) continue;
-      const sx = (pv.x + 1) / 2 * rect.width, sy = (1 - pv.y) / 2 * rect.height;
-      const d = (sx - mx) ** 2 + (sy - my) ** 2;
+      const r = N.rEdited[i] ? N.r[i] : (Number.isFinite(N.rOrig[i]) ? N.rOrig[i] : N.r[i]);
+      lines.push([N.id[i], N.type[i], +N.x[i].toFixed(6), +N.y[i].toFixed(6), +N.z[i].toFixed(6), +r.toFixed(6), N.pid[i]].join(' '));
+    }
+    download(meta.name + '_edited.swc', lines.join('\n') + '\n');
+  }
+
+  // =====================================================================
+  // 클릭 선택 · 노드 드래그 (드래그 이동은 편집 탭에서만)
+  // =====================================================================
+  const tip = $('#tip'), pv = new THREE.Vector3(), ray = new THREE.Raycaster(), plane = new THREE.Plane(), hit = new THREE.Vector3();
+  function pick(cx, cy, maxPx) {
+    if (!N) return -1;
+    const rect = canvas.getBoundingClientRect(), mx = cx - rect.left, my = cy - rect.top;
+    let best = -1, bestD = maxPx * maxPx, bestZ = 2;
+    for (let i = 0; i < N.N; i++) {
+      pv.copy(pos[i]).project(camera); if (pv.z < -1 || pv.z > 1) continue;
+      const sx = (pv.x + 1) / 2 * rect.width, sy = (1 - pv.y) / 2 * rect.height, d = (sx - mx) ** 2 + (sy - my) ** 2;
       if (d < bestD - 4 || (Math.abs(d - bestD) <= 4 && pv.z < bestZ)) { best = i; bestD = d; bestZ = pv.z; }
     }
     return best;
   }
-  let down = null;
-  canvas.addEventListener('pointerdown', ev => { down = { x: ev.clientX, y: ev.clientY, b: ev.button }; tip.hidden = true; });
+  function ndc(ev) { const r = canvas.getBoundingClientRect(); return new THREE.Vector2((ev.clientX - r.left) / r.width * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1); }
+  let down = null, drag = null;
+  canvas.addEventListener('pointerdown', ev => {
+    down = { x: ev.clientX, y: ev.clientY, b: ev.button }; tip.hidden = true;
+    if (tab === 'edit' && ev.button === 0) {
+      const i = pick(ev.clientX, ev.clientY, ev.pointerType === 'touch' ? 24 : 12);
+      if (i >= 0) {
+        controls.enabled = false; selId = N.id[i];
+        const n = new THREE.Vector3(); camera.getWorldDirection(n); plane.setFromNormalAndCoplanarPoint(n, pos[i].clone());
+        drag = { id: N.id[i], moved: false }; canvas.setPointerCapture(ev.pointerId);
+      }
+    }
+  });
+  canvas.addEventListener('pointermove', ev => {
+    if (drag) {
+      ray.setFromCamera(ndc(ev), camera);
+      if (ray.ray.intersectPlane(plane, hit)) {
+        const a = recs.find(r => r[0] === drag.id);
+        a[2] = hit.x + center[0]; a[3] = hit.y + center[1]; a[4] = hit.z + center[2]; drag.moved = true;
+        applyRecs(); highlight();
+      }
+      return;
+    }
+    if (down || ev.pointerType === 'touch') return;
+    const i = pick(ev.clientX, ev.clientY, 10), rect = view.getBoundingClientRect();
+    if (i >= 0) { tip.hidden = false; tip.style.left = (ev.clientX - rect.left) + 'px'; tip.style.top = (ev.clientY - rect.top) + 'px'; tip.textContent = `#${N.id[i]} · r ${f(N.r[i], 3)} µm`; canvas.style.cursor = tab === 'edit' ? 'move' : 'pointer'; }
+    else { tip.hidden = true; canvas.style.cursor = 'grab'; }
+  });
   canvas.addEventListener('pointerup', ev => {
+    if (drag) {
+      controls.enabled = true; const d = drag; drag = null; down = null;
+      if (d.moved) { commit(); setStatus(`노드 #${d.id}를 옮겼습니다. 연결된 구간 길이와 막면적을 다시 계산했습니다.`); }
+      captureBase(); refreshSelection(); return;
+    }
     if (!down) return;
     const moved = Math.hypot(ev.clientX - down.x, ev.clientY - down.y);
     if (down.b === 0 && moved < 5) { const i = pick(ev.clientX, ev.clientY, ev.pointerType === 'touch' ? 24 : 14); if (i >= 0) select(i); }
     down = null;
   });
-  let hoverRaf = 0;
-  canvas.addEventListener('pointermove', ev => {
-    if (down || ev.pointerType === 'touch') return;
-    cancelAnimationFrame(hoverRaf);
-    hoverRaf = requestAnimationFrame(() => {
-      const i = pick(ev.clientX, ev.clientY, 10);
-      const rect = view.getBoundingClientRect();
-      if (i >= 0) { tip.hidden = false; tip.style.left = (ev.clientX - rect.left) + 'px'; tip.style.top = (ev.clientY - rect.top) + 'px'; tip.textContent = `#${N.id[i]} · r ${f(N.r[i], 3)} µm`; canvas.style.cursor = 'pointer'; }
-      else { tip.hidden = true; canvas.style.cursor = 'grab'; }
-    });
-  });
   canvas.addEventListener('pointerleave', () => { tip.hidden = true; });
 
-  (function loop() { controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop); })();
+  // =====================================================================
+  // 시뮬레이션 (R 3단계와 같은 방법)
+  // =====================================================================
+  function setStatus(msg, cls) { const s = $('#status'); s.textContent = msg; s.className = 'status' + (cls ? ' ' + cls : ''); }
+  function simOpts(n) {
+    const o = { DT_MS: +$('#dt').value, TOTAL_TIME_MS: Math.min(200, Math.max(1, +$('#tend').value || 20)) };
+    const steps = o.TOTAL_TIME_MS / o.DT_MS;
+    o.recordEvery = Math.max(1, Math.ceil(steps / 2000));
+    if (stimId !== null) { const k = indexOf(n).get(stimId); if (k !== undefined) o.stimIdx = k; }
+    if ($('#stimmode').value === 'fixed') o.stimCurrentUA = (+$('#stimval').value || 0) * 1e-3; // nA → µA
+    else o.STIM_DENSITY_UA_CM2 = +$('#stimval').value || 0;
+    return o;
+  }
+  $('#stimmode').addEventListener('change', () => {
+    const fixed = $('#stimmode').value === 'fixed';
+    $('#stimval').value = fixed ? 0.1 : 20; $('#stimunit').textContent = fixed ? 'nA' : 'µA/cm²';
+  });
+  function runSim() {
+    setStatus('계산 중…');
+    requestAnimationFrame(() => setTimeout(() => {
+      try {
+        const t0 = performance.now();
+        sim = H.simulate(N, simOpts(N)); sim.ids = Array.from(N.id);
+        // 원본도 같은 자극 노드(ID)와 같은 자극 조건으로 계산
+        let oo = null;
+        if ($('#cmp').checked && editVersion) { oo = simOpts(n0); const k = idx0.get(sim.ids[sim.stim]); if (k !== undefined) oo.stimIdx = k; }
+        simOrig = oo ? Object.assign(H.simulate(n0, oo), { ids: Array.from(n0.id) }) : null;
+        simStale = false; tIndex = Math.min(tIndex, sim.nRec - 1);
+        const tl = $('#time'); tl.max = sim.nRec - 1;
+        if (tIndex === 0) tIndex = peakIndex();
+        tl.value = tIndex;
+        $('#stimtag').textContent = `#${N.id[sim.stim]}${stimId === null ? ' (자동)' : ''}`;
+        renderSimStatus(performance.now() - t0);
+        if (mode !== 'volt' && !store.get('mode2')) mode = 'volt';
+        recolor(); highlight(); drawCharts(); renderMetrics(); renderPanel();
+      } catch (err) { sim = null; setStatus('계산 실패: ' + err.message, 'bad'); drawCharts(); renderMetrics(); }
+    }, 0));
+  }
+  function peakIndex() { // 근위 지점이 가장 높을 때를 처음 보여줌 (없으면 자극 지점)
+    let best = 0, bv = -1e9;
+    for (let k = 0; k < sim.nRec; k++) { const v = sim.V[k * sim.N + sim.stim]; if (v > bv) { bv = v; best = k; } }
+    return best;
+  }
+  function renderSimStatus(ms) {
+    if (!sim) return;
+    if (simStale) { setStatus('구조가 바뀌었습니다. [시뮬레이션 실행]을 누르면 같은 자극 조건으로 다시 계산합니다.', 'warn'); return; }
+    const sp = sim.peak[sim.stim], fired = sp > 40;
+    const how = $('#stimmode').value === 'fixed' ? `고정 전류 ${$('#stimval').value} nA` : `R 방식 ${$('#stimval').value} µA/cm² × 노드 면적 = ${f(sim.stimI * 1e3, 6)} nA`;
+    setStatus(`${how} · Δt ${sim.dt} ms · ${sim.steps.toLocaleString()}걸음${ms ? ` · ${Math.round(ms)} ms 걸림` : ''} · ` +
+      (fired ? '활동전위 발생' : `활동전위 없음 (자극 지점 최대 +${f(sp, 3)} mV). 자극이 너무 약하면 고정 전류 0.1 nA로 바꿔 보세요.`), fired ? '' : 'warn');
+  }
+  $('#run').onclick = runSim;
+  $('#setstim').onclick = () => { stimId = selId; $('#stimtag').textContent = `#${selId}`; runSim(); };
+  $('#autostim').onclick = () => { stimId = null; runSim(); };
+  $('#cmp').addEventListener('change', runSim);
 
-  // ---------- 시작: 지난번 뉴런 또는 WT0601 중 가장 큰 뉴런 ----------
+  // ---------- 시간 슬라이더 · 재생 ----------
+  function setTime(k) {
+    if (!sim) return; tIndex = Math.max(0, Math.min(sim.nRec - 1, k)); $('#time').value = tIndex;
+    $('#timev').textContent = f(sim.T[tIndex], 2) + ' ms';
+    if (mode === 'volt') recolor(); drawCharts();
+  }
+  $('#time').addEventListener('input', ev => { playing = false; $('#play').textContent = '▶ 재생'; setTime(+ev.target.value); });
+  $('#play').onclick = () => {
+    if (!sim) return; playing = !playing; $('#play').textContent = playing ? '❚❚ 정지' : '▶ 재생';
+    if (playing) { if (mode !== 'volt') { mode = 'volt'; } if (tIndex >= sim.nRec - 1) tIndex = 0; let last = performance.now();
+      const stepF = now => { if (!playing) return; const adv = Math.max(1, Math.round((now - last) / 6000 * sim.nRec)); last = now; setTime(tIndex + adv); if (tIndex >= sim.nRec - 1) { playing = false; $('#play').textContent = '▶ 재생'; return; } requestAnimationFrame(stepF); };
+      requestAnimationFrame(stepF); }
+  };
+
+  // ---------- 그래프 ----------
+  function niceTicks(lo, hi, n) {
+    const span = hi - lo || 1, raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw))), st = [1, 2, 5, 10].map(m => m * mag).find(s => s >= raw) || 10 * mag;
+    const out = []; for (let v = Math.ceil(lo / st) * st; v <= hi + st * 1e-9; v += st) out.push(+v.toFixed(12)); return { ticks: out, step: st };
+  }
+  function plot(cv, series, opt) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), w = cv.clientWidth, h = cv.clientHeight;
+    cv.width = w * dpr; cv.height = h * dpr; const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+    const L = 52, R = 10, T = 26, B = 22, pw = w - L - R, ph = h - T - B;
+    g.font = '11px ' + css('--mono'); g.fillStyle = css('--muted'); g.strokeStyle = css('--line');
+    if (!series.length) { g.fillText(opt.empty || '', L, T + ph / 2); return; }
+    let lo = Infinity, hi = -Infinity, t1 = 0;
+    for (const s of series) { for (let k = 0; k < s.y.length; k++) { const v = s.y[k]; if (v < lo) lo = v; if (v > hi) hi = v; } t1 = Math.max(t1, s.t[s.t.length - 1]); }
+    if (opt.yMin !== undefined) lo = Math.min(lo, opt.yMin); if (opt.yMax !== undefined) hi = Math.max(hi, opt.yMax);
+    if (hi - lo < 1e-6) { hi += 0.5e-3; lo -= 0.5e-3; }
+    const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+    const X = t => L + t / t1 * pw, Y = v => T + (1 - (v - lo) / (hi - lo)) * ph;
+    const yt = niceTicks(lo, hi, 4), dec = Math.max(0, -Math.floor(Math.log10(yt.step)));
+    g.lineWidth = 1; g.textAlign = 'right'; g.textBaseline = 'middle';
+    for (const v of yt.ticks) { const y = Y(v); g.globalAlpha = 0.6; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.globalAlpha = 1; g.fillText(v.toFixed(dec), L - 6, y); }
+    const xt = niceTicks(0, t1, 6); g.textAlign = 'center'; g.textBaseline = 'top';
+    for (const v of xt.ticks) g.fillText(v, X(v), T + ph + 5);
+    g.textAlign = 'left'; g.fillText(opt.xLabel || 't (ms)', L + pw - 34, T + ph + 5 - 14 < T ? T : T + ph - 14);
+    if (opt.stim) { g.fillStyle = 'rgba(242,184,75,.10)'; g.fillRect(X(opt.stim[0]), T, X(opt.stim[1]) - X(opt.stim[0]), ph); }
+    g.save(); g.beginPath(); g.rect(L, T, pw, ph); g.clip();
+    for (const s of series) {
+      g.strokeStyle = s.color; g.lineWidth = s.w || 1.6; g.setLineDash(s.dash ? [5, 4] : []);
+      g.beginPath(); for (let k = 0; k < s.y.length; k++) { const x = X(s.t[k]), y = Y(s.y[k]); k ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke();
+    }
+    g.setLineDash([]);
+    if (opt.cursor !== undefined) { g.strokeStyle = css('--fg'); g.globalAlpha = 0.5; g.beginPath(); g.moveTo(X(opt.cursor), T); g.lineTo(X(opt.cursor), T + ph); g.stroke(); g.globalAlpha = 1; }
+    g.restore();
+  }
+  function seriesOf(S, id, arr) {
+    const k = S.ids.indexOf(id); if (k < 0) return null;
+    const y = new Float32Array(S.nRec); for (let j = 0; j < S.nRec; j++) y[j] = S[arr][j * S.N + k]; return y;
+  }
+  function drawCharts() {
+    const cv = $('#cv'), cg = $('#cg');
+    if (!sim) { plot(cv, [], { empty: '시뮬레이션을 실행하면 막전위 그래프가 나타납니다' }); plot(cg, [], {}); $('#capv').innerHTML = ''; $('#capg').innerHTML = ''; return; }
+    const T = sim.T, ser = [], cap = [];
+    const stimR = [H.HH.STIM_START_MS, H.HH.STIM_END_MS];
+    if (simOrig) { const y = seriesOf(simOrig, selId, 'V'); if (y) { ser.push({ t: simOrig.T, y, color: css('--muted'), dash: true }); cap.push(`<i class="dash" style="--c:${css('--muted')}">원본</i>`); } }
+    if (selId !== sim.ids[sim.stim]) { ser.push({ t: T, y: seriesOf(sim, sim.ids[sim.stim], 'V'), color: css('--soma'), w: 1 }); cap.push(`<i style="--c:${css('--soma')}">자극 #${sim.ids[sim.stim]}</i>`); }
+    const ys = seriesOf(sim, selId, 'V');
+    if (ys) { ser.push({ t: T, y: ys, color: css('--accent'), w: 2 }); cap.push(`<i style="--c:${css('--accent')}">선택 #${selId}${editVersion ? ' (수정본)' : ''}</i>`); }
+    plot(cv, ser, { stim: stimR, cursor: T[tIndex] });
+    $('#capv').innerHTML = `<span>막전위 V (mV)</span>` + cap.join('');
+    const gs = [['m', css('--gm')], ['h', css('--gh')], ['n', css('--gn')]].map(([k, c]) => ({ t: T, y: seriesOf(sim, selId, k), color: c })).filter(s => s.y);
+    plot(cg, gs, { yMin: 0, yMax: 1, stim: stimR, cursor: T[tIndex] });
+    $('#capg').innerHTML = `<span>게이팅 변수 #${selId}</span><i style="--c:${css('--gm')}">m Na</i><i style="--c:${css('--gh')}">h Na 불활성</i><i style="--c:${css('--gn')}">n K</i>`;
+    $('#timev').textContent = f(T[tIndex], 2) + ' ms';
+  }
+  window.addEventListener('resize', () => drawCharts());
+
+  // ---------- 비교 지표 ----------
+  function metricsOf(S) {
+    if (!S) return null;
+    const sp = S.peak[S.stim], pp = S.peak[S.prox];
+    const k = S.ids.indexOf(selId);
+    return { stimId: S.ids[S.stim], proxId: S.ids[S.prox], sp, pp, ratio: sp > 1e-9 ? pp / sp * 100 : NaN, delay: S.peakT[S.prox] - S.peakT[S.stim], sel: k >= 0 ? S.peak[k] : NaN, selT: k >= 0 ? S.peakT[k] : NaN };
+  }
+  function renderMetrics() {
+    const tb = $('#metrics'); const a = metricsOf(simOrig), b = metricsOf(sim);
+    if (!b) { tb.innerHTML = ''; return; }
+    const rows = [['자극 지점 최대 탈분극', 'sp', 'mV', 4], ['근위 지점 최대 탈분극', 'pp', 'mV', 4], ['비율 (근위 ÷ 자극)', 'ratio', '%', 3], ['최고점 시각 차이 (근위 − 자극)', 'delay', 'ms', 3], [`선택 #${selId} 최대 탈분극`, 'sel', 'mV', 4]];
+    const head = a ? `<tr><th></th><th>원본</th><th>수정본</th><th>변화</th></tr>` : `<tr><th></th><th>${editVersion ? '수정본' : '현재 뉴런'} (자극 #${b.stimId} · 근위 #${b.proxId})</th></tr>`;
+    tb.innerHTML = head + rows.map(([lab, k, u, d]) => {
+      if (!a) return `<tr><td>${lab}</td><td>${U(b[k], u, d)}</td></tr>`;
+      const dv = b[k] - a[k], cls = !Number.isFinite(dv) || Math.abs(dv) < 1e-9 ? '' : (k === 'delay' ? (dv > 0 ? 'd-down' : 'd-up') : (dv > 0 ? 'd-up' : 'd-down'));
+      return `<tr><td>${lab}</td><td>${U(a[k], u, d)}</td><td>${U(b[k], u, d)}</td><td class="${cls}">${Number.isFinite(dv) ? (dv > 0 ? '+' : '') + f(dv, d) : '—'}</td></tr>`;
+    }).join('');
+  }
+
+  // ---------- 수렴성 · RK4 · 저장 ----------
+  $('#conv').onclick = () => {
+    const x = $('#extra'); x.textContent = '시간 간격 0.01 / 0.005 / 0.0025 ms로 계산 중…';
+    setTimeout(() => {
+      try {
+        const out = [0.01, 0.005, 0.0025].map(dt => { const o = simOpts(N); o.DT_MS = dt; o.recordEvery = 1e9; const r = H.simulate(N, o); return { dt, sp: r.peak[r.stim], pp: r.peak[r.prox] }; });
+        const ref = out[2];
+        x.innerHTML = '수렴성 (기준 Δt=0.0025): ' + out.map(o => `Δt ${o.dt}: 자극 ${f(o.sp, 4)} mV, 근위 ${f(o.pp, 4)} mV` + (o === ref ? '' : ` (차이 ${f(Math.abs(o.pp - ref.pp) / Math.max(Math.abs(ref.pp), 1e-12) * 100, 3)}%)`)).join(' · ');
+      } catch (e) { x.textContent = '수렴성 검사 실패: ' + e.message; }
+    }, 30);
+  };
+  $('#rk4').onclick = () => {
+    const x = $('#extra'); x.textContent = 'RK4로 같은 문제를 푸는 중…';
+    setTimeout(() => {
+      try {
+        const dt = +$('#dt').value, o = simOpts(N); o.rk4MaxTime = Math.min(o.TOTAL_TIME_MS, 6);
+        const r = H.simulateRK4(N, o), need = H.rk4StableDt(N, o), steps = Math.ceil(o.TOTAL_TIME_MS / need);
+        x.innerHTML = (r.diverged ? `<b style="color:var(--bad)">RK4는 Δt=${dt} ms에서 t=${f(r.diverged.t, 3)} ms에 발산했습니다</b> (값이 폭발). ` : `RK4가 ${f(r.tEnd, 1)} ms까지 발산하지 않았습니다. `) +
+          `이 뉴런에서 RK4가 안정하려면 Δt ≤ 약 ${need.toExponential(1)} ms가 필요합니다. 현재보다 약 ${Math.round(dt / need).toLocaleString()}배 작고, ${f(o.TOTAL_TIME_MS, 0)} ms를 계산하려면 약 ${steps.toLocaleString()}걸음입니다. 짧고 가는 구획이 만드는 빠른 전류(강직성) 때문이며, 그래서 R 코드는 막전위를 암시적(후진 오일러) 방법으로 풉니다.`;
+      } catch (e) { x.textContent = 'RK4 비교 실패: ' + e.message; }
+    }, 30);
+  };
+  $('#dlsim').onclick = () => {
+    if (!sim) return;
+    const rows = ['id,Peak_Depolarization_mV,Minimum_Voltage_Change_mV,Peak_Time_ms,Is_Stim,Is_Proximal'];
+    for (let i = 0; i < sim.N; i++) rows.push([sim.ids[i], sim.peak[i], sim.minD[i], sim.peakT[i], i === sim.stim, i === sim.prox].join(','));
+    const tr = ['Time_ms,Stim_V_mV,Proximal_V_mV'];
+    for (let k = 0; k < sim.nRec; k++) tr.push([sim.T[k], sim.V[k * sim.N + sim.stim], sim.V[k * sim.N + sim.prox]].join(','));
+    const head = `# ${meta.name}${editVersion ? ' (수정본)' : ''} · method=gate_exponential_Euler_voltage_backward_Euler_tree_solver · dt=${sim.dt} ms · stim #${sim.ids[sim.stim]} · proximal #${sim.ids[sim.prox]} · stim current ${sim.stimI} uA\n`;
+    download(meta.name + (editVersion ? '_edited' : '') + '_simulation.csv', head + rows.join('\n') + '\n\n' + tr.join('\n') + '\n');
+  };
+
+  function showError(e, msg) {
+    $('#info').innerHTML = `<section class="sec"><h2>불러오기 실패</h2><div class="title">${esc(e.name)}</div><p class="err">${esc(msg)}</p><p class="note">SWC 한 줄은 번호, 부위, x, y, z, 반지름, 부모 번호의 7개 값이어야 합니다.</p></section>`;
+  }
+
+  (function loop() { controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop); })();
   resize();
   const last = entries.find(e => e.key === store.get('neuron'));
   const wt0601 = entries.filter(e => e.mouse === 'WT0601').sort((a, b) => b.nodes - a.nodes)[0];

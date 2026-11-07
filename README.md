@@ -4,17 +4,21 @@
 
 **사이트:** https://yulsstudy09.github.io/neuron-sim/
 
-## 현재 기능 (1·2단계)
+## 현재 기능 (1~5단계)
 - Zhang et al.(2020) 해마 CA1 SWC 149개(WT/AD × 6/12개월)를 3D로 보기, 다른 SWC 불러오기
 - 노드를 클릭하면 좌표, 반지름, 구간·가지 길이와 막면적, 막용량, 축저항, gNa/gK/gL 표시
 - 팀 R 코드(1·2단계 v3)의 보정 규칙을 그대로 적용: 반지름 0 → 0.1 µm, 길이 0 → 0.35 µm, 비정상 반지름 → 이웃 중앙값. 원본 값은 따로 보관
 - 검증: 149개 전부 팀의 `_parameters.csv`와 일치 (최대 상대오차 5×10⁻¹⁵)
+- 구조 편집: 가지 길이 배율·평면 회전·기울기, 반지름 배율(가지/하위/노드/전체), 노드 드래그, 가지 추가·삭제, 되돌리기, 원본 겹쳐 보기, 수정 SWC·CSV 저장
+- HH 시뮬레이션: R 3단계(게이팅 지수 오일러 + 전압 후진 오일러 트리 해법)를 그대로 이식. R(Rscript)로 직접 돌린 4개 뉴런과 자극·근위 지점, 비율 8자리 일치
+- 막전위·게이팅 변수(m, h, n) 그래프, 자극 위치 지정, R 방식/고정 전류 자극, 원본 vs 수정본 비교, 시간 슬라이더·재생으로 3D 색 변화
+- 시간 간격 수렴성 검사, RK4 비교(발산 시각과 필요한 Δt 표시)
 
 ## 구조
 - `index.html` — 배포용 단일 파일 (빌드 결과)
-- `src/engine.js` — R 계산을 옮긴 계산 엔진, `src/app.html` — 화면
+- `src/engine.js` — R 1·2단계 계산, `src/hh.js` — R 3단계 HH 계산, `src/app.html` — 화면
 - `tools/build.js` — `node tools/build.js data` 로 index 생성 (`cp dist/neuron-sim.html index.html`)
-- `tools/validate12.js` — R 결과 CSV와 비교 검증
+- `tools/validate12.js`, `tools/validate3.js` — R 결과 CSV와 비교 검증
 - `data/` — 원본 SWC 149개
 
 보정 기준과 고전 HH 상수는 기존 연구 결과를 재현하기 위한 탐색적 가정이며 생물학적 측정값이 아닙니다.
